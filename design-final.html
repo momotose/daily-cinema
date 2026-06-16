@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DailyCinema Color — 最終デザイン案（STUDIO LIGHT × 比較バー）</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #111; color: #ddd;
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  padding: 28px 16px 80px;
+}
+.page-head { max-width: 1020px; margin: 0 auto 26px; }
+.page-head h1 { font-size: 18px; letter-spacing: .1em; font-family: Menlo, monospace; }
+.page-head p  { font-size: 13px; color: #888; margin-top: 8px; line-height: 1.7; }
+.pattern { max-width: 1020px; margin: 0 auto 46px; }
+.p-label { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.p-desc  { font-size: 12px; color: #999; line-height: 1.7; margin-bottom: 10px; }
+.scroll { overflow-x: auto; border-radius: 16px; }
+
+/* ── STUDIO LIGHT 共通トークン ─────────────────────────────── */
+.sl-theme {
+  --bg: #FBFAF7; --panel: #FFFFFF; --area: #F1EFE9;
+  --line: #E7E3DB; --text: #211E1A; --sub: #9A948B;
+  --track: #E8E4DC; --knob: #211E1A;
+}
+.scene {
+  background:
+    radial-gradient(circle at 72% 30%, rgba(255,230,180,.85) 0%, rgba(255,190,120,.35) 18%, transparent 40%),
+    linear-gradient(180deg, #d99a6c 0%, #b56a52 38%, #6e4150 62%, #2e2435 100%);
+}
+.scene-flat {
+  background:
+    radial-gradient(circle at 72% 30%, rgba(235,235,235,.5) 0%, transparent 40%),
+    linear-gradient(180deg, #a9a4a0 0%, #8a8584 38%, #5d5760 62%, #2c2a31 100%);
+}
+
+/* ピル・チップ・スライダー（白テーマ） */
+.pill {
+  font-size: 10px; padding: 5px 13px; border-radius: 999px;
+  background: var(--area); color: #6f6a61; white-space: nowrap; border: none;
+}
+.pill.on { background: var(--text); color: #fff; font-weight: 700; }
+.pill.line { background: transparent; border: 1px solid var(--line); }
+.pill.line.on { background: var(--text); color: #fff; border-color: var(--text); }
+.black-btn {
+  background: var(--text); color: #fff; border: none; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: .14em; padding: 9px 26px;
+}
+.sl-row { margin-bottom: 12px; }
+.sl-h { display: flex; justify-content: space-between; font-size: 11px; color: var(--text); margin-bottom: 6px; }
+.sl-h i { font-style: normal; color: var(--sub); }
+.sl-bar { position: relative; height: 2px; background: var(--track); border-radius: 1px; }
+.sl-bar::after {
+  content: ''; position: absolute; top: 50%; transform: translate(-50%,-50%);
+  width: 13px; height: 13px; border-radius: 50%; background: var(--knob);
+  left: var(--x, 50%);
+}
+.sec-t { font-size: 10px; letter-spacing: .22em; color: var(--sub); margin-bottom: 8px; }
+
+/* 比較バー */
+.cmp-wrap { position: relative; overflow: hidden; }
+.cmp-wrap .before {
+  position: absolute; inset: 0; right: auto; width: var(--split, 36%);
+  filter: saturate(.18) contrast(.92) brightness(1.02);
+  background: inherit;
+}
+.cmp-line {
+  position: absolute; top: 0; bottom: 0; left: var(--split, 36%);
+  width: 1.5px; background: #fff; box-shadow: 0 0 6px rgba(0,0,0,.35);
+}
+.cmp-line .grip {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #fff; color: #211E1A;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; letter-spacing: -1px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3);
+}
+.cmp-tag {
+  position: absolute; top: 10px; font-size: 8.5px; letter-spacing: .18em;
+  padding: 3px 9px; border-radius: 999px;
+  background: rgba(255,255,255,.85); color: #211E1A; font-weight: 600;
+}
+.cmp-tag.b { left: 10px; }
+.cmp-tag.a { left: calc(var(--split, 36%) + 12px); }
+
+/* ════ PC版モック ════ */
+.pc {
+  min-width: 880px; height: 560px;
+  background: var(--bg); border-radius: 16px; overflow: hidden;
+  color: var(--text); display: flex; flex-direction: column;
+}
+.pc .top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 22px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.pc .top .logo { font-size: 12px; letter-spacing: .35em; font-weight: 600; }
+.pc .top .sub  { font-size: 10px; letter-spacing: .2em; color: var(--sub); }
+.pc .body { flex: 1; display: flex; min-height: 0; }
+
+.pc .lib {
+  width: 168px; flex-shrink: 0; padding: 14px;
+  background: var(--panel); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.pc .add {
+  border: 1.5px dashed #C9C3B8; border-radius: 10px; background: none;
+  color: var(--text); font-size: 11px; padding: 11px 0;
+}
+.pc .vid { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+.pc .vid.on { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+.pc .vid .th { height: 62px; }
+.pc .vid span { display: block; font-size: 9px; color: var(--sub); padding: 5px 8px; }
+
+.pc .main { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--area); }
+.pc .prev { flex: 1; display: flex; align-items: center; justify-content: center; padding: 18px; min-height: 0; }
+.pc .frame-v { width: 56%; height: 100%; border-radius: 8px; }
+.pc .ctrl { padding: 0 22px 16px; display: flex; flex-direction: column; gap: 12px; }
+.pc .tl { position: relative; height: 10px; background: #E3DFD6; border-radius: 999px; }
+.pc .tl .h  { position: absolute; top: -4px; width: 7px; height: 18px; border-radius: 4px; background: var(--text); }
+.pc .tl .ph { position: absolute; left: 38%; top: -3px; width: 2px; height: 16px; background: #6f6a61; }
+.pc .row { display: flex; align-items: center; gap: 8px; }
+.pc .seg { display: flex; background: var(--panel); border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
+.pc .seg span { font-size: 10px; padding: 6px 13px; color: #6f6a61; }
+.pc .seg span.on { background: var(--text); color: #fff; font-weight: 700; border-radius: 999px; }
+
+.pc .side {
+  width: 252px; flex-shrink: 0; padding: 16px;
+  background: var(--panel); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 16px;
+}
+.pc .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pc .mycolor {
+  display: flex; justify-content: space-between; align-items: center;
+  border: 1px solid var(--line); border-radius: 10px;
+  font-size: 11px; padding: 8px 11px; margin-bottom: 6px;
+}
+.pc .mycolor.on { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+.pc .mycolor .ic { color: var(--sub); font-size: 10px; }
+.pc .grow { flex: 1; }
+.pc .save { margin-top: auto; border-top: 1px solid var(--line); padding-top: 12px; display: flex; gap: 6px; }
+.pc .save input {
+  flex: 1; min-width: 0; font-size: 11px; padding: 8px 11px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--sub);
+}
+.pc .save .black-btn { padding: 8px 16px; letter-spacing: 0; }
+
+/* ════ 携帯版モック ════ */
+.mobile-stage {
+  min-width: 860px; display: flex; gap: 44px; align-items: center; justify-content: center;
+  background: #1a1916; border-radius: 16px; padding: 26px 0;
+}
+.phone {
+  width: 264px; height: 540px; border-radius: 34px; overflow: hidden;
+  border: 6px solid #2e2b27; background: var(--bg); color: var(--text);
+  display: flex; flex-direction: column; flex-shrink: 0;
+}
+.phone .scrollable { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+.phone .top {
+  display: flex; justify-content: center; padding: 10px 0 8px;
+  background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.phone .top .logo { font-size: 9px; letter-spacing: .3em; font-weight: 600; }
+.phone .strip {
+  display: flex; gap: 6px; padding: 8px; background: var(--panel);
+  border-bottom: 1px solid var(--line); align-items: center;
+}
+.phone .strip .add {
+  width: 56px; height: 40px; flex-shrink: 0;
+  border: 1.5px dashed #C9C3B8; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 8px; color: var(--text); text-align: center; line-height: 1.3;
+}
+.phone .strip .v { width: 56px; height: 40px; border-radius: 8px; flex-shrink: 0; border: 1px solid var(--line); }
+.phone .strip .v.on { border: 2px solid var(--text); }
+.phone .prev { background: var(--area); padding: 10px; }
+.phone .frame-v { height: 150px; border-radius: 8px; }
+.phone .cmp-line .grip { width: 22px; height: 22px; font-size: 8px; }
+.phone .cmp-tag { font-size: 6.5px; padding: 2px 6px; top: 6px; }
+.phone .tl { position: relative; height: 7px; background: #E3DFD6; border-radius: 999px; margin: 10px 10px 0; }
+.phone .tl .h { position: absolute; top: -3px; width: 6px; height: 13px; border-radius: 3px; background: var(--text); }
+.phone .tl .ph { position: absolute; left: 38%; top: -2px; width: 1.5px; height: 11px; background: #6f6a61; }
+.phone .row { display: flex; gap: 4px; padding: 9px 10px; flex-wrap: wrap; background: var(--area); }
+.phone .pill { font-size: 8px; padding: 4px 9px; }
+.phone .panel { background: var(--panel); border-top: 1px solid var(--line); padding: 11px 12px 8px; }
+.phone .sec-t { font-size: 8px; margin-bottom: 6px; }
+.phone .chips { display: flex; gap: 4px; flex-wrap: wrap; margin-bottom: 10px; }
+.phone .sl-row { margin-bottom: 9px; }
+.phone .sl-h { font-size: 9px; margin-bottom: 4px; }
+.phone .sl-bar::after { width: 11px; height: 11px; }
+.phone .foot {
+  margin-top: auto; display: flex; gap: 5px; padding: 9px 10px;
+  background: var(--panel); border-top: 1px solid var(--line);
+}
+.phone .foot input {
+  flex: 1; min-width: 0; font-size: 9px; padding: 7px 10px;
+  border: 1px solid var(--line); border-radius: 999px; background: var(--bg); color: var(--sub);
+}
+.phone .foot .black-btn { font-size: 9px; padding: 7px 13px; letter-spacing: .05em; }
+.m-note { width: 270px; font-size: 12px; color: #888; line-height: 2; }
+.m-note b { color: #ccc; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>最終デザイン案 — STUDIO LIGHT × 比較バー</h1>
+  <p>②STUDIO LIGHT（白ミニマル）をベースに、構造Cの<b>Before/After比較バー</b>を組み込んだ案。<br>
+  比較バーはシェーダー内の1判定で実現するので<b>動作は一切重くなりません</b>（描画は今まで通り1回だけ）。「比較」ボタンでON/OFFできます。</p>
+</div>
+
+<!-- PC版 -->
+<div class="pattern sl-theme">
+  <div class="p-label">PC版</div>
+  <p class="p-desc">基本は承認済みのSTUDIO LIGHTレイアウト。プレビューに比較バー（白い丸ハンドルを左右にドラッグ）、下の操作列に「比較」トグルが加わっています。</p>
+  <div class="scroll">
+  <div class="pc">
+    <div class="top"><span class="logo">DAILY CINEMA COLOR</span><span class="sub">STUDIO LIGHT</span></div>
+    <div class="body">
+      <div class="lib">
+        <button class="add">＋ 動画を追加</button>
+        <div class="vid on"><div class="th scene"></div><span>IMG_6648.MOV</span></div>
+        <div class="vid"><div class="th scene-flat"></div><span>output_2.MOV</span></div>
+        <div class="vid"><div class="th scene" style="filter:hue-rotate(60deg)"></div><span>VL_1705.MP4</span></div>
+      </div>
+      <div class="main">
+        <div class="prev">
+          <div class="frame-v scene cmp-wrap" style="--split:36%">
+            <div class="before scene"></div>
+            <span class="cmp-tag b">BEFORE</span><span class="cmp-tag a">AFTER</span>
+            <div class="cmp-line"><div class="grip">◂▸</div></div>
+          </div>
+        </div>
+        <div class="ctrl">
+          <div class="tl"><div class="h" style="left:12%"></div><div class="h" style="left:70%"></div><div class="ph"></div></div>
+          <div class="row">
+            <div class="seg"><span class="on">Original</span><span>16:9</span><span>4:3</span><span>3:2</span></div>
+            <span class="pill line on">枠</span>
+            <span class="pill line">日付</span>
+            <span class="pill line on">比較</span>
+            <span style="flex:1"></span>
+            <button class="black-btn">EXPORT</button>
+          </div>
+        </div>
+      </div>
+      <div class="side">
+        <div>
+          <div class="sec-t">フィルムベース</div>
+          <div class="chips"><span class="pill on">なし</span><span class="pill">daily</span><span class="pill">usui_ao</span><span class="pill">portra</span></div>
+        </div>
+        <div>
+          <div class="sec-t">MY COLOR</div>
+          <div class="mycolor on"><span>夕暮れフィルム</span><span class="ic">⤓ ×</span></div>
+          <div class="mycolor"><span>淡青あたたかめ</span><span class="ic">⤓ ×</span></div>
+        </div>
+        <div class="grow">
+          <div class="sec-t">調整</div>
+          <div class="sl-row"><div class="sl-h"><b>色温度</b><i>+35</i></div><div class="sl-bar" style="--x:67%"></div></div>
+          <div class="sl-row"><div class="sl-h"><b>露光量</b><i>+10</i></div><div class="sl-bar" style="--x:55%"></div></div>
+          <div class="sl-row"><div class="sl-h"><b>彩度</b><i>-10</i></div><div class="sl-bar" style="--x:45%"></div></div>
+          <div class="sl-row"><div class="sl-h"><b>フェード</b><i>+30</i></div><div class="sl-bar" style="--x:65%"></div></div>
+        </div>
+        <div class="save">
+          <input placeholder="名前をつけて保存">
+          <button class="black-btn">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- 携帯版 -->
+<div class="pattern sl-theme">
+  <div class="p-label">携帯版</div>
+  <p class="p-desc">同じ白テーマのまま縦積みに。動画は上の横スクロール帯、比較バーはプレビュー内でそのまま指でドラッグ。保存＋書き出しは画面下に固定。</p>
+  <div class="scroll">
+  <div class="mobile-stage">
+    <div class="phone">
+      <div class="top"><span class="logo">DAILY CINEMA COLOR</span></div>
+      <div class="strip">
+        <div class="add">＋<br>追加</div>
+        <div class="v scene on"></div>
+        <div class="v scene-flat"></div>
+        <div class="v scene" style="filter:hue-rotate(60deg)"></div>
+      </div>
+      <div class="prev">
+        <div class="frame-v scene cmp-wrap" style="--split:38%">
+          <div class="before scene"></div>
+          <span class="cmp-tag b">BEFORE</span><span class="cmp-tag a">AFTER</span>
+          <div class="cmp-line"><div class="grip">◂▸</div></div>
+        </div>
+        <div class="tl"><div class="h" style="left:12%"></div><div class="h" style="left:70%"></div><div class="ph"></div></div>
+        <div class="row">
+          <span class="pill on">Original</span><span class="pill">16:9</span><span class="pill">4:3</span><span class="pill">3:2</span>
+          <span class="pill line on">枠</span><span class="pill line">日付</span><span class="pill line on">比較</span>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="sec-t">フィルムベース</div>
+        <div class="chips"><span class="pill on">なし</span><span class="pill">daily</span><span class="pill">usui_ao</span><span class="pill">portra</span></div>
+        <div class="sec-t">MY COLOR</div>
+        <div class="chips"><span class="pill line on">夕暮れフィルム</span><span class="pill line">淡青あたたかめ</span></div>
+        <div class="sec-t">調整 <span style="float:right;letter-spacing:0">↓ スクロール</span></div>
+        <div class="sl-row"><div class="sl-h"><b>色温度</b><i>+35</i></div><div class="sl-bar" style="--x:67%"></div></div>
+        <div class="sl-row"><div class="sl-h"><b>露光量</b><i>+10</i></div><div class="sl-bar" style="--x:55%"></div></div>
+      </div>
+      <div class="foot">
+        <input placeholder="名前をつけて保存">
+        <button class="black-btn">保存</button>
+        <button class="black-btn" style="background:#211E1A">書き出し</button>
+      </div>
+    </div>
+    <div class="m-note">
+      <b>携帯版のポイント</b><br>
+      ・動画一覧は上の横スクロール帯<br>
+      ・比較バーは指でそのままドラッグ<br>
+      ・「調整」は下に続く（縦スクロール）<br>
+      ・保存／書き出しは常に画面下に固定<br>
+      ・プレビュータップで再生/停止（実装済み）
+    </div>
+  </div>
+  </div>
+</div>
+
+</body>
+</html>

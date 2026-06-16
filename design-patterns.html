@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DailyCinema Color — デザイン案 6パターン</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #111; color: #ddd;
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  padding: 28px 16px 80px;
+}
+.page-head { max-width: 1020px; margin: 0 auto 28px; }
+.page-head h1 { font-size: 18px; letter-spacing: .1em; font-family: Menlo, monospace; }
+.page-head p  { font-size: 13px; color: #888; margin-top: 8px; line-height: 1.7; }
+
+.pattern { max-width: 1020px; margin: 0 auto 46px; }
+.p-label { display: flex; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.p-label .num  { font-size: 22px; font-weight: 800; color: #fff; font-family: Menlo, monospace; }
+.p-label .name { font-size: 15px; font-weight: 700; }
+.p-label .desc { font-size: 12px; color: #888; }
+.scroll { overflow-x: auto; border-radius: 14px; }
+
+/* ── モック共通構造 ──────────────────────────────────────────── */
+.mock {
+  min-width: 860px; height: 520px;
+  display: flex; flex-direction: column;
+  overflow: hidden; border-radius: 14px;
+  font-family: var(--f-main);
+  background: var(--bg); color: var(--text);
+}
+.m-top {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px;
+  background: var(--surf); border-bottom: 1px solid var(--line);
+}
+.m-logo { font-size: 11px; letter-spacing: .22em; font-weight: 700; font-family: var(--f-mono); }
+.m-tag  { font-size: 10px; color: var(--sub); font-family: var(--f-mono); }
+.m-body { flex: 1; display: flex; min-height: 0; }
+
+.m-lib {
+  width: 132px; flex-shrink: 0; padding: 10px;
+  background: var(--surf); border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.m-add {
+  border: 1px dashed var(--sub); background: none; color: var(--text);
+  font-size: 10px; padding: 9px 0; cursor: default;
+  border-radius: var(--r-s); font-family: var(--f-mono);
+}
+.m-vid { border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
+.m-vid.active { border-color: var(--accent); }
+.m-vid span {
+  display: block; font-size: 8.5px; color: var(--sub);
+  padding: 3px 6px; font-family: var(--f-mono);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.m-th { height: 56px; }
+.th1 { background: linear-gradient(160deg, #f0a868 0%, #c75146 55%, #4a2c40 100%); }
+.th2 { background: linear-gradient(180deg, #aebfcf 0%, #7d8e9e 60%, #3e4a52 100%); }
+.th3 { background: linear-gradient(150deg, #9fb98a 0%, #5e7d57 60%, #2f4031 100%); }
+
+.m-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.m-preview {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 14px; min-height: 0;
+}
+.m-scene {
+  width: 62%; height: 100%;
+  border-radius: var(--r-s);
+  background:
+    radial-gradient(circle at 72% 30%, rgba(255,230,180,.85) 0%, rgba(255,190,120,.35) 18%, transparent 40%),
+    linear-gradient(180deg, #d99a6c 0%, #b56a52 38%, #6e4150 62%, #2e2435 100%);
+  box-shadow: inset 0 0 60px rgba(0,0,0,.35);
+  filter: var(--scene-filter, none);
+}
+.m-ctrl {
+  flex-shrink: 0; padding: 10px 14px 14px;
+  background: var(--surf); border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.m-timeline { position: relative; height: 22px; background: var(--track); border-radius: var(--r-s); }
+.m-range { position: absolute; left: 12%; width: 58%; top: 0; bottom: 0; background: var(--range); }
+.m-h { position: absolute; top: -2px; bottom: -2px; width: 9px; border-radius: 3px; background: var(--accent); }
+.m-h.in  { left: 12%; }
+.m-h.out { left: 70%; background: var(--accent2, var(--accent)); }
+.m-ph { position: absolute; left: 38%; top: -4px; bottom: -4px; width: 2px; background: var(--text); }
+.m-row { display: flex; align-items: center; gap: 8px; }
+.m-seg { display: flex; border: 1px solid var(--line); border-radius: var(--r-s); overflow: hidden; }
+.m-seg span { font-size: 9.5px; padding: 4px 9px; color: var(--sub); font-family: var(--f-mono); }
+.m-seg span.on { background: var(--seg-on-bg); color: var(--seg-on-tx); font-weight: 700; }
+.m-tgl {
+  font-size: 9.5px; padding: 4px 9px; color: var(--sub);
+  border: 1px solid var(--line); border-radius: var(--r-s); font-family: var(--f-mono);
+}
+.m-tgl.on { color: var(--text); border-color: var(--text); }
+.m-spacer { flex: 1; }
+.m-export {
+  border: none; font-size: 10px; font-weight: 800; letter-spacing: .12em;
+  padding: 7px 20px; border-radius: var(--r-s); cursor: default;
+  background: var(--ex-bg); color: var(--ex-tx); font-family: var(--f-mono);
+}
+
+.m-side {
+  width: 218px; flex-shrink: 0; padding: 12px;
+  background: var(--surf); border-left: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.m-title {
+  font-size: 8.5px; letter-spacing: .18em; color: var(--sub);
+  font-family: var(--f-mono); margin-bottom: 6px;
+}
+.m-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  font-size: 9.5px; padding: 3px 9px;
+  border: 1px solid var(--line); border-radius: var(--r-chip);
+  color: var(--sub); font-family: var(--f-mono); background: var(--bg);
+}
+.chip.on { background: var(--seg-on-bg); color: var(--seg-on-tx); border-color: var(--seg-on-bg); font-weight: 700; }
+.m-pre {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 10px; padding: 5px 8px; margin-bottom: 4px;
+  border: 1px solid var(--line); border-radius: var(--r-s); background: var(--bg);
+}
+.m-pre.on { border-color: var(--accent); }
+.m-pre .ico { color: var(--sub); font-size: 9px; font-family: var(--f-mono); }
+.m-sec.grow { flex: 1; }
+.sl { margin-bottom: 8px; }
+.sl .h { display: flex; justify-content: space-between; font-size: 9.5px; margin-bottom: 4px; }
+.sl .h b { font-weight: 400; }
+.sl .h i { font-style: normal; color: var(--sub); font-family: var(--f-mono); font-size: 9px; }
+.sl .bar { position: relative; height: 3px; background: var(--track); border-radius: 2px; }
+.sl .bar::after {
+  content: ''; position: absolute; top: 50%; transform: translate(-50%,-50%);
+  width: 11px; height: 11px; border-radius: 50%; background: var(--knob);
+  left: var(--x, 50%);
+}
+.m-save { margin-top: auto; border-top: 1px solid var(--line); padding-top: 10px; display: flex; gap: 5px; }
+.m-save input {
+  flex: 1; min-width: 0; font-size: 10px; padding: 6px 8px;
+  background: var(--bg); border: 1px solid var(--line); color: var(--sub);
+  border-radius: var(--r-s); font-family: var(--f-main);
+}
+.m-save button {
+  font-size: 10px; font-weight: 700; padding: 6px 12px; border: none; cursor: default;
+  background: var(--save-bg); color: var(--save-tx); border-radius: var(--r-s);
+  font-family: var(--f-mono);
+}
+
+/* ════ ① CINEMA DARK（現行） ════ */
+.t1 {
+  --bg: #0C0B0A; --surf: #1A1816; --line: #2C2A28;
+  --text: #EDE7DF; --sub: #6B6660;
+  --accent: #FF7248; --accent2: #EDB76E;
+  --track: #383430; --range: rgba(255,114,72,.25);
+  --r-s: 4px; --r-chip: 12px;
+  --f-main: -apple-system, sans-serif; --f-mono: Menlo, monospace;
+  --seg-on-bg: #EDE7DF; --seg-on-tx: #0C0B0A;
+  --ex-bg: linear-gradient(90deg, #FF7248, #EDB76E); --ex-tx: #111;
+  --save-bg: #EDE7DF; --save-tx: #0C0B0A;
+  --knob: #EDE7DF;
+}
+
+/* ════ ② STUDIO LIGHT ════ */
+.t2 {
+  --bg: #F7F6F3; --surf: #FFFFFF; --line: #E6E2DB;
+  --text: #211E1A; --sub: #98928A;
+  --accent: #211E1A; --accent2: #B8AD9C;
+  --track: #ECE8E1; --range: rgba(33,30,26,.08);
+  --r-s: 8px; --r-chip: 999px;
+  --f-main: -apple-system, 'Helvetica Neue', sans-serif; --f-mono: -apple-system, sans-serif;
+  --seg-on-bg: #211E1A; --seg-on-tx: #FFFFFF;
+  --ex-bg: #211E1A; --ex-tx: #fff;
+  --save-bg: #211E1A; --save-tx: #fff;
+  --knob: #211E1A;
+  --scene-filter: saturate(.92) brightness(1.06);
+}
+.t2 .m-top { border-bottom: 1px solid var(--line); }
+.t2 .m-logo { letter-spacing: .3em; font-weight: 500; }
+
+/* ════ ③ FILM LAB ════ */
+.t3 {
+  --bg: #F2EBDA; --surf: #EAE1CB; --line: #CDBfa2; --line: #CFC1A4;
+  --text: #3B342A; --sub: #8D8064;
+  --accent: #E0701F; --accent2: #B5531A;
+  --track: #DCD0B4; --range: rgba(224,112,31,.18);
+  --r-s: 2px; --r-chip: 2px;
+  --f-main: Georgia, serif; --f-mono: 'Courier New', monospace;
+  --seg-on-bg: #E0701F; --seg-on-tx: #F8F3E6;
+  --ex-bg: #E0701F; --ex-tx: #F8F3E6;
+  --save-bg: #3B342A; --save-tx: #F2EBDA;
+  --knob: #E0701F;
+  --scene-filter: sepia(.25) saturate(1.15) contrast(.96);
+}
+.t3 .m-top {
+  background:
+    repeating-linear-gradient(90deg, transparent 0 14px, rgba(59,52,42,.16) 14px 22px) ,
+    #EAE1CB;
+}
+.t3 .m-logo::after { content: '  EST. 2026'; color: var(--sub); font-weight: 400; }
+
+/* ════ ④ PRO NLE ════ */
+.t4 {
+  --bg: #141617; --surf: #1E2122; --line: #2C3032;
+  --text: #C9CDD0; --sub: #6E7579;
+  --accent: #4D9FFF; --accent2: #4D9FFF;
+  --track: #2C3032; --range: rgba(77,159,255,.22);
+  --r-s: 3px; --r-chip: 3px;
+  --f-main: -apple-system, sans-serif; --f-mono: 'SF Mono', Menlo, monospace;
+  --seg-on-bg: #4D9FFF; --seg-on-tx: #0E1011;
+  --ex-bg: #4D9FFF; --ex-tx: #0E1011;
+  --save-bg: #2C3032; --save-tx: #C9CDD0;
+  --knob: #C9CDD0;
+  --scene-filter: saturate(1.05) contrast(1.04);
+}
+.t4 .m-logo { font-size: 10px; letter-spacing: .1em; }
+
+/* ════ ⑤ 和・静謐 ════ */
+.t5 {
+  --bg: #F2EFE9; --surf: #FAF8F3; --line: #DDD6C8;
+  --text: #2B2B2B; --sub: #9C937F;
+  --accent: #9A3B3B; --accent2: #C5A572;
+  --track: #E6E0D2; --range: rgba(154,59,59,.12);
+  --r-s: 0px; --r-chip: 0px;
+  --f-main: 'Hiragino Mincho ProN', 'Yu Mincho', serif; --f-mono: 'Hiragino Mincho ProN', serif;
+  --seg-on-bg: #2B2B2B; --seg-on-tx: #F2EFE9;
+  --ex-bg: #9A3B3B; --ex-tx: #F6F2EA;
+  --save-bg: #2B2B2B; --save-tx: #F2EFE9;
+  --knob: #9A3B3B;
+  --scene-filter: saturate(.85) brightness(1.04) contrast(.97);
+}
+.t5 .m-logo { letter-spacing: .45em; font-weight: 500; }
+.t5 .m-tag::before { content: '日々の色 — '; color: var(--accent); }
+.t5 .m-side, .t5 .m-lib { padding: 14px; }
+
+/* ════ ⑥ NEO GLASS ════ */
+.t6 {
+  --bg: #0B1026; --surf: rgba(255,255,255,.055); --line: rgba(255,255,255,.13);
+  --text: #EAEFFB; --sub: #7E88A8;
+  --accent: #7C5CFF; --accent2: #43E0C9;
+  --track: rgba(255,255,255,.1); --range: rgba(124,92,255,.3);
+  --r-s: 12px; --r-chip: 999px;
+  --f-main: -apple-system, sans-serif; --f-mono: Menlo, monospace;
+  --seg-on-bg: linear-gradient(90deg, #7C5CFF, #43E0C9); --seg-on-tx: #0B1026;
+  --ex-bg: linear-gradient(90deg, #7C5CFF, #43E0C9); --ex-tx: #0B1026;
+  --save-bg: rgba(255,255,255,.92); --save-tx: #0B1026;
+  --knob: #43E0C9;
+  --scene-filter: saturate(1.12) hue-rotate(-6deg);
+}
+.t6.mock { background: radial-gradient(circle at 20% 0%, #1A1040 0%, #0B1026 55%, #070B1A 100%); }
+.t6 .m-scene { box-shadow: 0 0 40px rgba(124,92,255,.25), inset 0 0 60px rgba(0,0,0,.35); }
+.t6 .chip.on { border: none; }
+
+@media (max-width: 768px) {
+  body { padding: 20px 8px 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>DAILY CINEMA COLOR — デザイン案</h1>
+  <p>同じ画面構成（左: 動画 / 中央: プレビュー / 右: フィルムベース→MY COLOR→調整→保存）で、見た目だけ6パターン。<br>
+  横にスクロールできます。気に入った<b>番号</b>（複数可・「③の配色で②の余白」みたいな組み合わせもOK）を教えてください。</p>
+</div>
+
+<div id="patterns"></div>
+
+<script>
+const THEMES = [
+  ['t1', '① CINEMA DARK',  '現行案。暗室×コーラル＆ゴールド、等幅フォントのシネマ系'],
+  ['t2', '② STUDIO LIGHT', '白基調のミニマル。写真スタジオ・ギャラリー風、黒のピルボタン'],
+  ['t3', '③ FILM LAB',     'クリーム紙×Kodakオレンジ。現像所・アナログフィルム風（上部にパーフォレーション）'],
+  ['t4', '④ PRO NLE',      'DaVinci/Premiere系の業務用ダークグレー×ブルー。密度高めのプロ道具感'],
+  ['t5', '⑤ 和・静謐',      '生成り×墨×朱。明朝体・余白広め、うつしき系の静かな和モダン'],
+  ['t6', '⑥ NEO GLASS',    '深紺グラデ×すりガラスパネル。紫→ミントのグラデアクセント、今っぽいSaaS風'],
+];
+
+const SLIDERS = [
+  ['色温度', '+35', 67], ['露光量', '+10', 55], ['彩度', '-10', 45], ['フェード', '+30', 65],
+];
+
+function mockHTML(cls, name) {
+  return `
+  <div class="mock ${cls}">
+    <div class="m-top"><span class="m-logo">DAILY CINEMA COLOR</span><span class="m-tag">${name.slice(2)}</span></div>
+    <div class="m-body">
+      <div class="m-lib">
+        <button class="m-add">＋ 動画を追加</button>
+        <div class="m-vid active"><div class="m-th th1"></div><span>IMG_6648.MOV</span></div>
+        <div class="m-vid"><div class="m-th th2"></div><span>output_2.MOV</span></div>
+        <div class="m-vid"><div class="m-th th3"></div><span>VL_1705.MP4</span></div>
+      </div>
+      <div class="m-main">
+        <div class="m-preview"><div class="m-scene"></div></div>
+        <div class="m-ctrl">
+          <div class="m-timeline"><div class="m-range"></div><div class="m-h in"></div><div class="m-h out"></div><div class="m-ph"></div></div>
+          <div class="m-row">
+            <div class="m-seg"><span class="on">Original</span><span>16:9</span><span>4:3</span><span>3:2</span></div>
+            <span class="m-tgl on">枠</span><span class="m-tgl">日付</span>
+            <span class="m-spacer"></span>
+            <button class="m-export">EXPORT</button>
+          </div>
+        </div>
+      </div>
+      <div class="m-side">
+        <div class="m-sec">
+          <div class="m-title">フィルムベース</div>
+          <div class="m-chips"><span class="chip on">なし</span><span class="chip">daily</span><span class="chip">usui_ao</span><span class="chip">portra</span></div>
+        </div>
+        <div class="m-sec">
+          <div class="m-title">MY COLOR</div>
+          <div class="m-pre on"><span>夕暮れフィルム</span><span class="ico">⤓ ×</span></div>
+          <div class="m-pre"><span>淡青あたたかめ</span><span class="ico">⤓ ×</span></div>
+        </div>
+        <div class="m-sec grow">
+          <div class="m-title">調整</div>
+          ${SLIDERS.map(([l, v, x]) => `
+          <div class="sl">
+            <div class="h"><b>${l}</b><i>${v}</i></div>
+            <div class="bar" style="--x:${x}%"></div>
+          </div>`).join('')}
+        </div>
+        <div class="m-save"><input placeholder="名前をつけて保存"><button>保存</button></div>
+      </div>
+    </div>
+  </div>`;
+}
+
+const box = document.getElementById('patterns');
+box.innerHTML = THEMES.map(([cls, name, desc]) => `
+  <div class="pattern">
+    <div class="p-label">
+      <span class="num">${name.slice(0, 1)}</span>
+      <span class="name">${name.slice(2)}</span>
+      <span class="desc">${desc}</span>
+    </div>
+    <div class="scroll">${mockHTML(cls, name)}</div>
+  </div>`).join('');
+</script>
+</body>
+</html>

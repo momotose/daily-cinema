@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DailyCinema Color — 構造デザイン案 6パターン</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #111; color: #ddd;
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  padding: 28px 16px 80px;
+}
+.page-head { max-width: 1020px; margin: 0 auto 28px; }
+.page-head h1 { font-size: 18px; letter-spacing: .1em; font-family: Menlo, monospace; }
+.page-head p  { font-size: 13px; color: #888; margin-top: 8px; line-height: 1.7; }
+.pattern { max-width: 1020px; margin: 0 auto 52px; }
+.p-label { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+.p-label .num  { font-size: 22px; font-weight: 800; color: #fff; font-family: Menlo, monospace; }
+.p-label .name { font-size: 15px; font-weight: 700; }
+.p-desc { font-size: 12px; color: #999; line-height: 1.7; margin-bottom: 10px; }
+.scroll { overflow-x: auto; border-radius: 14px; }
+
+/* 共通パーツ */
+.frame {
+  min-width: 860px; height: 520px; border-radius: 14px; overflow: hidden;
+  background: #0C0B0A; color: #EDE7DF; position: relative;
+  font-family: -apple-system, sans-serif;
+}
+.mono { font-family: Menlo, monospace; }
+.scene {
+  background:
+    radial-gradient(circle at 72% 30%, rgba(255,230,180,.85) 0%, rgba(255,190,120,.35) 18%, transparent 40%),
+    linear-gradient(180deg, #d99a6c 0%, #b56a52 38%, #6e4150 62%, #2e2435 100%);
+}
+.scene-flat {
+  background:
+    radial-gradient(circle at 72% 30%, rgba(235,235,235,.5) 0%, transparent 40%),
+    linear-gradient(180deg, #a9a4a0 0%, #8a8584 38%, #5d5760 62%, #2c2a31 100%);
+}
+.chip {
+  font-size: 9.5px; padding: 3px 10px; border-radius: 12px;
+  border: 1px solid #3a3633; color: #8d877f; font-family: Menlo, monospace;
+  background: rgba(12,11,10,.55); white-space: nowrap;
+}
+.chip.on { background: #EDE7DF; color: #0C0B0A; border-color: #EDE7DF; font-weight: 700; }
+.exp {
+  background: linear-gradient(90deg, #FF7248, #EDB76E); color: #111;
+  font-size: 10px; font-weight: 800; letter-spacing: .12em;
+  padding: 7px 20px; border: none; border-radius: 4px; font-family: Menlo, monospace;
+}
+.sl-h { display: flex; justify-content: space-between; font-size: 9.5px; margin-bottom: 4px; }
+.sl-h i { font-style: normal; color: #8d877f; font-family: Menlo, monospace; font-size: 9px; }
+.sl-bar { position: relative; height: 3px; background: #383430; border-radius: 2px; }
+.sl-bar::after {
+  content: ''; position: absolute; top: 50%; transform: translate(-50%,-50%);
+  width: 11px; height: 11px; border-radius: 50%; background: #EDE7DF;
+  left: var(--x, 50%);
+}
+
+/* ════ A. IMMERSIVE — 全画面プレビュー＋浮遊UI ════ */
+.pA .full { position: absolute; inset: 0; }
+.pA .logo { position: absolute; top: 14px; left: 16px; font-size: 10px; letter-spacing: .25em; color: rgba(255,255,255,.85); text-shadow: 0 1px 8px rgba(0,0,0,.5); }
+.pA .exp  { position: absolute; top: 10px; right: 14px; }
+.pA .strip {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  display: flex; flex-direction: column; gap: 6px;
+  background: rgba(10,9,8,.55); backdrop-filter: blur(6px);
+  padding: 8px; border-radius: 10px; border: 1px solid rgba(255,255,255,.08);
+}
+.pA .strip .v { width: 54px; height: 36px; border-radius: 5px; border: 1px solid rgba(255,255,255,.15); }
+.pA .strip .v.on { border-color: #FF7248; }
+.pA .strip .add { width: 54px; height: 24px; border-radius: 5px; border: 1px dashed rgba(255,255,255,.3); color: rgba(255,255,255,.6); font-size: 12px; display: flex; align-items: center; justify-content: center; }
+.pA .sheet {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  width: 200px; padding: 12px;
+  background: rgba(10,9,8,.6); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.08); border-radius: 12px;
+}
+.pA .sheet .t { font-size: 8.5px; letter-spacing: .18em; color: #9a948c; margin-bottom: 8px; font-family: Menlo, monospace; }
+.pA .sheet .sl { margin-bottom: 9px; }
+.pA .dock {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(10,9,8,.6); backdrop-filter: blur(8px);
+  padding: 8px 12px; border-radius: 999px; border: 1px solid rgba(255,255,255,.08);
+}
+.pA .timeline {
+  position: absolute; left: 80px; right: 80px; bottom: 58px;
+  height: 4px; background: rgba(255,255,255,.18); border-radius: 2px;
+}
+.pA .timeline .rng { position: absolute; left: 12%; width: 56%; top: 0; bottom: 0; background: #FF7248; opacity: .7; }
+.pA .timeline .h { position: absolute; top: -5px; width: 3px; height: 14px; background: #fff; border-radius: 2px; }
+
+/* ════ B. MOBILE DECK — スマホ特化・ノブのデッキ ════ */
+.pB { display: flex; align-items: center; justify-content: center; gap: 40px; background: #15130f; }
+.pB .phone {
+  width: 248px; height: 488px; border-radius: 30px; overflow: hidden;
+  border: 5px solid #2b2823; background: #0C0B0A;
+  display: flex; flex-direction: column;
+}
+.pB .p-prev { height: 46%; position: relative; }
+.pB .p-prev .dt { position: absolute; right: 8px; bottom: 6px; font-size: 7px; color: #fff; font-family: Menlo, monospace; text-shadow: 0 1px 4px #000; }
+.pB .p-films { display: flex; gap: 6px; padding: 8px 10px; overflow: hidden; }
+.pB .film { flex-shrink: 0; width: 44px; }
+.pB .film .sw { height: 30px; border-radius: 6px; border: 1px solid #3a3633; }
+.pB .film.on .sw { border-color: #FF7248; }
+.pB .film span { display: block; text-align: center; font-size: 7px; color: #8d877f; margin-top: 2px; font-family: Menlo, monospace; }
+.pB .deck { display: flex; gap: 10px; padding: 6px 10px 2px; overflow: hidden; }
+.pB .knob { flex-shrink: 0; width: 58px; text-align: center; }
+.pB .knob .dial {
+  width: 44px; height: 44px; margin: 0 auto; border-radius: 50%;
+  border: 2px solid #383430; position: relative;
+  background: radial-gradient(circle at 50% 45%, #211f1c, #14120f);
+}
+.pB .knob.on .dial { border-color: #FF7248; }
+.pB .knob .dial::after {
+  content: ''; position: absolute; left: 50%; top: 4px; width: 2px; height: 10px;
+  background: #EDE7DF; transform-origin: 50% 18px; transform: rotate(var(--rot, 0deg));
+}
+.pB .knob span { font-size: 7.5px; color: #8d877f; display: block; margin-top: 3px; }
+.pB .knob b { font-size: 8px; color: #EDE7DF; font-family: Menlo, monospace; font-weight: 400; }
+.pB .p-foot { margin-top: auto; display: flex; gap: 6px; padding: 10px; }
+.pB .p-foot .save { flex: 1; font-size: 8.5px; color: #8d877f; border: 1px solid #3a3633; border-radius: 6px; display: flex; align-items: center; padding: 0 8px; }
+.pB .p-foot .exp { font-size: 8px; padding: 6px 12px; }
+.pB .note { width: 240px; font-size: 11px; color: #777; line-height: 1.8; }
+
+/* ════ C. SPLIT COMPARE — ビフォー/アフター比較が主役 ════ */
+.pC { display: flex; flex-direction: column; }
+.pC .top { display: flex; gap: 6px; align-items: center; padding: 8px 12px; background: #15130f; border-bottom: 1px solid #2C2A28; }
+.pC .top .v { width: 48px; height: 30px; border-radius: 4px; border: 1px solid #3a3633; }
+.pC .top .v.on { border-color: #FF7248; }
+.pC .top .add { width: 48px; height: 30px; border: 1px dashed #5a554e; border-radius: 4px; color: #8d877f; font-size: 13px; display: flex; align-items: center; justify-content: center; }
+.pC .cmp { flex: 1; position: relative; margin: 12px 14px; border-radius: 8px; overflow: hidden; display: flex; }
+.pC .cmp .before { width: 38%; }
+.pC .cmp .after  { flex: 1; }
+.pC .cmp .div {
+  position: absolute; left: 38%; top: 0; bottom: 0; width: 2px; background: #fff;
+}
+.pC .cmp .div::after {
+  content: '◂ ▸'; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: #fff; color: #111; font-size: 9px; padding: 4px 6px; border-radius: 999px; white-space: nowrap;
+}
+.pC .cmp .tagB, .pC .cmp .tagA {
+  position: absolute; top: 8px; font-size: 8px; letter-spacing: .15em;
+  padding: 2px 8px; border-radius: 3px; background: rgba(0,0,0,.5); color: #fff; font-family: Menlo, monospace;
+}
+.pC .cmp .tagB { left: 8px; }
+.pC .cmp .tagA { left: calc(38% + 10px); }
+.pC .grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 18px;
+  padding: 10px 16px 12px; background: #15130f; border-top: 1px solid #2C2A28;
+}
+.pC .foot { display: flex; align-items: center; gap: 8px; padding: 0 16px 12px; background: #15130f; }
+
+/* ════ D. STEP FLOW — 迷わない3ステップ ════ */
+.pD { display: flex; flex-direction: column; }
+.pD .steps { display: flex; justify-content: center; gap: 36px; padding: 16px 0 10px; }
+.pD .step { display: flex; align-items: center; gap: 8px; font-size: 11px; color: #6B6660; }
+.pD .step .n { width: 20px; height: 20px; border-radius: 50%; border: 1px solid #3a3633; display: flex; align-items: center; justify-content: center; font-size: 10px; font-family: Menlo, monospace; }
+.pD .step.on { color: #EDE7DF; }
+.pD .step.on .n { background: #FF7248; border-color: #FF7248; color: #111; font-weight: 700; }
+.pD .step.done .n { border-color: #EDB76E; color: #EDB76E; }
+.pD h3 { text-align: center; font-size: 13px; font-weight: 500; color: #cfc9c0; margin: 4px 0 14px; }
+.pD .pgrid { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 0 40px; }
+.pD .pcard { border: 1px solid #2C2A28; border-radius: 10px; overflow: hidden; }
+.pD .pcard.on { border-color: #FF7248; box-shadow: 0 0 0 1px #FF7248; }
+.pD .pcard .pv { height: 74%; }
+.pD .pcard .nm { display: flex; align-items: center; justify-content: center; height: 26%; font-size: 10px; color: #b9b2a8; }
+.pD .nav { display: flex; justify-content: center; gap: 12px; padding: 16px; }
+.pD .ghost { background: none; border: 1px solid #3a3633; color: #8d877f; font-size: 10px; padding: 7px 18px; border-radius: 4px; font-family: Menlo, monospace; }
+
+/* ════ E. COLOR SHELF — 「色の棚」がホーム ════ */
+.pE { display: flex; flex-direction: column; }
+.pE .drop {
+  margin: 14px 16px 4px; padding: 14px;
+  border: 1px dashed #4a453e; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  color: #9a948c; font-size: 11px;
+}
+.pE .tabs { display: flex; gap: 14px; padding: 12px 18px 8px; font-size: 11px; }
+.pE .tabs span { color: #6B6660; padding-bottom: 4px; }
+.pE .tabs span.on { color: #EDE7DF; border-bottom: 2px solid #FF7248; }
+.pE .shelf { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 4px 18px 16px; }
+.pE .card { border: 1px solid #2C2A28; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+.pE .card .pv { flex: 1; position: relative; }
+.pE .card .pv .dt { position: absolute; right: 6px; bottom: 4px; font-size: 7px; color: #fff; font-family: Menlo, monospace; }
+.pE .card .meta { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; background: #15130f; }
+.pE .card .meta b { font-size: 10.5px; font-weight: 600; }
+.pE .card .meta div { display: flex; gap: 6px; }
+.pE .card .meta .mini { font-size: 8.5px; color: #8d877f; border: 1px solid #3a3633; padding: 2px 8px; border-radius: 3px; font-family: Menlo, monospace; }
+.pE .card .meta .use  { font-size: 8.5px; color: #111; background: #EDE7DF; padding: 2px 10px; border-radius: 3px; font-weight: 700; font-family: Menlo, monospace; }
+
+/* ════ F. WORKBENCH — タイムライン＋スコープのNLE構造 ════ */
+.pF { display: flex; flex-direction: column; }
+.pF .up { flex: 1.25; display: flex; min-height: 0; }
+.pF .view { flex: 1; margin: 12px; border-radius: 6px; position: relative; }
+.pF .view .dt { position: absolute; right: 10px; bottom: 8px; font-size: 8px; color: #fff; font-family: Menlo, monospace; }
+.pF .scopes { width: 250px; padding: 12px 12px 12px 0; display: flex; flex-direction: column; gap: 10px; }
+.pF .scope { flex: 1; background: #15130f; border: 1px solid #2C2A28; border-radius: 6px; padding: 8px; }
+.pF .scope .t { font-size: 8px; letter-spacing: .15em; color: #6B6660; font-family: Menlo, monospace; margin-bottom: 6px; }
+.pF .wave { height: calc(100% - 16px); display: flex; align-items: flex-end; gap: 2px; }
+.pF .wave i { flex: 1; background: linear-gradient(180deg, #EDB76E, #7a4a32); border-radius: 1px; }
+.pF .inspector { width: 190px; padding: 12px; background: #15130f; border-left: 1px solid #2C2A28; }
+.pF .inspector .t { font-size: 8px; letter-spacing: .15em; color: #6B6660; font-family: Menlo, monospace; margin-bottom: 8px; }
+.pF .inspector .sl { margin-bottom: 9px; }
+.pF .down { flex: 1; background: #15130f; border-top: 1px solid #2C2A28; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.pF .tl-tools { display: flex; align-items: center; gap: 8px; }
+.pF .track { flex: 1; position: relative; border-radius: 6px; background: #0C0B0A; border: 1px solid #2C2A28; padding: 8px; display: flex; align-items: center; }
+.pF .clip { height: 100%; flex: 1; border-radius: 4px; display: flex; overflow: hidden; position: relative; border: 1px solid #4a453e; }
+.pF .clip i { flex: 1; opacity: .85; }
+.pF .clip .hin, .pF .clip .hout { position: absolute; top: 0; bottom: 0; width: 10px; background: #FF7248; }
+.pF .clip .hin { left: 14%; } .pF .clip .hout { right: 26%; background: #EDB76E; }
+.pF .clip .ph { position: absolute; left: 44%; top: -4px; bottom: -4px; width: 2px; background: #fff; }
+</style>
+</head>
+<body>
+
+<div class="page-head">
+  <h1>DAILY CINEMA COLOR — 構造デザイン案（レイアウトから別物）</h1>
+  <p>今度は<b>画面の骨格そのもの</b>が違う6案です。配色はあえて全部ダークで統一（構造の違いだけ見るため）。<br>
+  「<b>構造Cで配色は前回の③</b>」のように、前回ページの配色案と自由に組み合わせて指定できます。</p>
+</div>
+
+<!-- A -->
+<div class="pattern">
+  <div class="p-label"><span class="num">A</span><span class="name">IMMERSIVE — 映像が全画面、UIは浮かせる</span></div>
+  <p class="p-desc">プレビューが常に画面100%。動画一覧は左の浮きストリップ、調整は右の半透明シート（普段は畳める）、下に最小限のドック。「映像を見ながら染める」没入特化。スマホでもそのまま成立。</p>
+  <div class="scroll">
+  <div class="frame pA">
+    <div class="full scene"></div>
+    <div class="logo mono">DAILY CINEMA COLOR</div>
+    <button class="exp">EXPORT</button>
+    <div class="strip">
+      <div class="v scene on"></div>
+      <div class="v scene-flat"></div>
+      <div class="v scene" style="filter:hue-rotate(60deg)"></div>
+      <div class="add">＋</div>
+    </div>
+    <div class="sheet">
+      <div class="t">調整</div>
+      <div class="sl"><div class="sl-h"><b>色温度</b><i>+35</i></div><div class="sl-bar" style="--x:67%"></div></div>
+      <div class="sl"><div class="sl-h"><b>露光量</b><i>+10</i></div><div class="sl-bar" style="--x:55%"></div></div>
+      <div class="sl"><div class="sl-h"><b>彩度</b><i>-10</i></div><div class="sl-bar" style="--x:45%"></div></div>
+      <div class="sl"><div class="sl-h"><b>フェード</b><i>+30</i></div><div class="sl-bar" style="--x:65%"></div></div>
+      <div class="t" style="margin-top:10px">名前をつけて保存</div>
+      <div style="display:flex;gap:5px"><div style="flex:1;border:1px solid rgba(255,255,255,.15);border-radius:5px;height:22px"></div><span class="chip on">保存</span></div>
+    </div>
+    <div class="timeline"><div class="rng"></div><div class="h" style="left:12%"></div><div class="h" style="left:68%"></div></div>
+    <div class="dock">
+      <span class="chip on">なし</span><span class="chip">daily</span><span class="chip">usui_ao</span><span class="chip">portra</span>
+      <span style="width:1px;height:14px;background:rgba(255,255,255,.15)"></span>
+      <span class="chip">16:9</span><span class="chip on">枠</span><span class="chip">日付</span>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- B -->
+<div class="pattern">
+  <div class="p-label"><span class="num">B</span><span class="name">MOBILE DECK — スマホ前提、回すノブのデッキ</span></div>
+  <p class="p-desc">縦持ちスマホを主役に設計（PCはこれが中央に出るだけ）。スライダーではなく<b>横スクロールのダイヤル</b>で片手調整。フィルムベースは「色が見えるサムネ」のカルーセル。Instagram世代の操作感。</p>
+  <div class="scroll">
+  <div class="frame pB">
+    <div class="phone">
+      <div class="p-prev scene"><div class="dt">2026/06/11 THU</div></div>
+      <div class="p-films">
+        <div class="film"><div class="sw scene-flat"></div><span>なし</span></div>
+        <div class="film on"><div class="sw scene"></div><span>daily</span></div>
+        <div class="film"><div class="sw scene" style="filter:hue-rotate(-30deg) saturate(.7)"></div><span>usui_ao</span></div>
+        <div class="film"><div class="sw scene" style="filter:sepia(.4)"></div><span>portra</span></div>
+        <div class="film"><div class="sw scene" style="filter:hue-rotate(40deg)"></div><span>＋</span></div>
+      </div>
+      <div class="deck">
+        <div class="knob on"><div class="dial" style="--rot:40deg"></div><span>色温度</span><b>+35</b></div>
+        <div class="knob"><div class="dial" style="--rot:10deg"></div><span>露光量</span><b>+10</b></div>
+        <div class="knob"><div class="dial" style="--rot:-15deg"></div><span>彩度</span><b>-10</b></div>
+        <div class="knob"><div class="dial" style="--rot:35deg"></div><span>フェード</span><b>+30</b></div>
+      </div>
+      <div class="p-foot">
+        <div class="save">名前をつけて保存…</div>
+        <button class="exp">書き出し</button>
+      </div>
+    </div>
+    <div class="note">
+      PCで開いたときは、この“スマホ画面”がそのまま中央に表示される最小UI。<br><br>
+      ・ノブは左右スワイプで回す<br>
+      ・プレビューを長押しでビフォー表示<br>
+      ・下のバーで保存と書き出しだけ
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- C -->
+<div class="pattern">
+  <div class="p-label"><span class="num">C</span><span class="name">SPLIT COMPARE — ビフォー/アフターが常に主役</span></div>
+  <p class="p-desc">中央の分割ハンドルを左右にドラッグして<b>元の色と仕上がりを常時比較</b>しながら調整。スライダーは下に全幅で8本並べて一覧性重視。「効きが分かる」ことを最優先したカラリスト視点の構造。</p>
+  <div class="scroll">
+  <div class="frame pC">
+    <div class="top">
+      <div class="v scene on"></div><div class="v scene-flat"></div><div class="v scene" style="filter:hue-rotate(60deg)"></div><div class="add">＋</div>
+      <span style="flex:1"></span>
+      <span class="chip on">なし</span><span class="chip">daily</span><span class="chip">usui_ao</span><span class="chip">portra</span>
+    </div>
+    <div class="cmp">
+      <div class="before scene-flat"></div>
+      <div class="after scene"></div>
+      <div class="div"></div>
+      <span class="tagB">BEFORE</span><span class="tagA">AFTER</span>
+    </div>
+    <div class="grid">
+      <div class="sl"><div class="sl-h"><b>色温度</b><i>+35</i></div><div class="sl-bar" style="--x:67%"></div></div>
+      <div class="sl"><div class="sl-h"><b>ティント</b><i>0</i></div><div class="sl-bar"></div></div>
+      <div class="sl"><div class="sl-h"><b>露光量</b><i>+10</i></div><div class="sl-bar" style="--x:55%"></div></div>
+      <div class="sl"><div class="sl-h"><b>コントラスト</b><i>+12</i></div><div class="sl-bar" style="--x:56%"></div></div>
+      <div class="sl"><div class="sl-h"><b>ハイライト</b><i>-20</i></div><div class="sl-bar" style="--x:40%"></div></div>
+      <div class="sl"><div class="sl-h"><b>シャドウ</b><i>+15</i></div><div class="sl-bar" style="--x:58%"></div></div>
+      <div class="sl"><div class="sl-h"><b>彩度</b><i>-10</i></div><div class="sl-bar" style="--x:45%"></div></div>
+      <div class="sl"><div class="sl-h"><b>フェード</b><i>+30</i></div><div class="sl-bar" style="--x:65%"></div></div>
+    </div>
+    <div class="foot">
+      <span class="chip">Original</span><span class="chip on">4:3</span><span class="chip on">枠</span><span class="chip">日付</span>
+      <span style="flex:1"></span>
+      <span class="chip">MY COLORに保存</span>
+      <button class="exp">EXPORT</button>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- D -->
+<div class="pattern">
+  <div class="p-label"><span class="num">D</span><span class="name">STEP FLOW — 3ステップで迷わせない</span></div>
+  <p class="p-desc">「①動画 → ②色を選ぶ → ③仕上げて書き出し」の画面遷移型。②では保存した色とフィルムベースが<b>その動画に適用された状態の大きなカード</b>で並ぶ。微調整は③で。初めて使う人への配布に最強の構造。</p>
+  <div class="scroll">
+  <div class="frame pD">
+    <div class="steps">
+      <div class="step done"><span class="n">✓</span>動画を選ぶ</div>
+      <div class="step on"><span class="n">2</span>色を選ぶ</div>
+      <div class="step"><span class="n">3</span>仕上げ・書き出し</div>
+    </div>
+    <h3>どの色にしますか？（あとで微調整できます）</h3>
+    <div class="pgrid">
+      <div class="pcard"><div class="pv scene-flat"></div><div class="nm">なし（元の色）</div></div>
+      <div class="pcard on"><div class="pv scene"></div><div class="nm">daily</div></div>
+      <div class="pcard"><div class="pv scene" style="filter:hue-rotate(-30deg) saturate(.75)"></div><div class="nm">usui_ao</div></div>
+      <div class="pcard"><div class="pv scene" style="filter:sepia(.35)"></div><div class="nm">portra</div></div>
+      <div class="pcard"><div class="pv scene" style="filter:saturate(.7) brightness(1.08)"></div><div class="nm">★ 夕暮れフィルム</div></div>
+      <div class="pcard"><div class="pv scene" style="filter:hue-rotate(15deg) contrast(1.1)"></div><div class="nm">★ 淡青あたたかめ</div></div>
+      <div class="pcard"><div class="pv" style="display:flex;align-items:center;justify-content:center;color:#6B6660;font-size:20px">＋</div><div class="nm">.cube を読み込む</div></div>
+    </div>
+    <div class="nav">
+      <button class="ghost">← 戻る</button>
+      <button class="exp">この色で進む →</button>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- E -->
+<div class="pattern">
+  <div class="p-label"><span class="num">E</span><span class="name">COLOR SHELF — 「色の棚」がホーム画面</span></div>
+  <p class="p-desc">主役を動画ではなく<b>あなたの色（MY COLOR）</b>にした構造。ホームは色の棚で、動画をドロップすると全カードがその動画のプレビューに変わる。カードの「使う」で編集へ。色を育てる・配る（⤓）文化を前面に。</p>
+  <div class="scroll">
+  <div class="frame pE">
+    <div class="drop">⬆ ここに動画をドロップすると、すべての色がこの動画でプレビューされます</div>
+    <div class="tabs"><span class="on">MY COLOR (4)</span><span>フィルムベース</span></div>
+    <div class="shelf">
+      <div class="card"><div class="pv scene"><div class="dt">2026/06/11</div></div>
+        <div class="meta"><b>夕暮れフィルム</b><div><span class="mini">⤓ .cube</span><span class="use">使う</span></div></div></div>
+      <div class="card"><div class="pv scene" style="filter:hue-rotate(-25deg) saturate(.8)"></div>
+        <div class="meta"><b>淡青あたたかめ</b><div><span class="mini">⤓ .cube</span><span class="use">使う</span></div></div></div>
+      <div class="card"><div class="pv scene" style="filter:sepia(.3) contrast(1.05)"></div>
+        <div class="meta"><b>休日のフィルム</b><div><span class="mini">⤓ .cube</span><span class="use">使う</span></div></div></div>
+      <div class="card"><div class="pv scene" style="filter:saturate(.65) brightness(1.1)"></div>
+        <div class="meta"><b>しずかな朝</b><div><span class="mini">⤓ .cube</span><span class="use">使う</span></div></div></div>
+      <div class="card"><div class="pv scene-flat"></div>
+        <div class="meta"><b>なし（元の色）</b><div><span class="use">使う</span></div></div></div>
+      <div class="card"><div class="pv" style="display:flex;align-items:center;justify-content:center;color:#6B6660;font-size:22px">＋</div>
+        <div class="meta"><b>新しい色を作る</b></div></div>
+    </div>
+  </div>
+  </div>
+</div>
+
+<!-- F -->
+<div class="pattern">
+  <div class="p-label"><span class="num">F</span><span class="name">WORKBENCH — スコープ付きのNLE構造</span></div>
+  <p class="p-desc">DaVinci的な作業台。上＝プレビュー＋<b>波形/RGBスコープ</b>（露出と色被りが数値でなく形で見える）、下＝サムネ付きの太いタイムラインでトリム。右に最小インスペクタ。本格派に見える＆撮影の腕も上がる構造。</p>
+  <div class="scroll">
+  <div class="frame pF">
+    <div class="up">
+      <div class="view scene"><div class="dt">2026/06/11 THU</div></div>
+      <div class="scopes">
+        <div class="scope"><div class="t">WAVEFORM</div>
+          <div class="wave"><i style="height:30%"></i><i style="height:45%"></i><i style="height:62%"></i><i style="height:80%"></i><i style="height:88%"></i><i style="height:70%"></i><i style="height:52%"></i><i style="height:38%"></i><i style="height:58%"></i><i style="height:74%"></i><i style="height:66%"></i><i style="height:42%"></i></div></div>
+        <div class="scope"><div class="t">RGB PARADE</div>
+          <div class="wave"><i style="height:60%;background:#c25445"></i><i style="height:72%;background:#c25445"></i><i style="height:48%;background:#c25445"></i><i style="height:55%;background:#5b8a4e"></i><i style="height:66%;background:#5b8a4e"></i><i style="height:44%;background:#5b8a4e"></i><i style="height:38%;background:#4e6e8a"></i><i style="height:52%;background:#4e6e8a"></i><i style="height:30%;background:#4e6e8a"></i></div></div>
+      </div>
+      <div class="inspector">
+        <div class="t">フィルムベース</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px"><span class="chip on">なし</span><span class="chip">daily</span><span class="chip">usui_ao</span><span class="chip">portra</span></div>
+        <div class="t">調整</div>
+        <div class="sl"><div class="sl-h"><b>色温度</b><i>+35</i></div><div class="sl-bar" style="--x:67%"></div></div>
+        <div class="sl"><div class="sl-h"><b>露光量</b><i>+10</i></div><div class="sl-bar" style="--x:55%"></div></div>
+        <div class="sl"><div class="sl-h"><b>彩度</b><i>-10</i></div><div class="sl-bar" style="--x:45%"></div></div>
+        <div class="sl"><div class="sl-h"><b>フェード</b><i>+30</i></div><div class="sl-bar" style="--x:65%"></div></div>
+        <div class="t" style="margin-top:10px">MY COLOR</div>
+        <div style="display:flex;gap:4px;flex-wrap:wrap"><span class="chip">夕暮れフィルム</span><span class="chip">＋保存</span></div>
+      </div>
+    </div>
+    <div class="down">
+      <div class="tl-tools">
+        <span class="chip on">▶ 再生</span><span class="chip">0:04.2 / 0:10.3</span>
+        <span style="flex:1"></span>
+        <span class="chip">Original</span><span class="chip on">4:3</span><span class="chip on">枠</span><span class="chip">日付</span>
+        <button class="exp">EXPORT</button>
+      </div>
+      <div class="track">
+        <div class="clip">
+          <i class="scene"></i><i class="scene" style="filter:hue-rotate(20deg)"></i><i class="scene" style="filter:brightness(.8)"></i><i class="scene" style="filter:hue-rotate(-20deg)"></i><i class="scene" style="filter:saturate(.6)"></i>
+          <div class="hin"></div><div class="hout"></div><div class="ph"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  </div>
+</div>
+
+</body>
+</html>

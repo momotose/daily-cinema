@@ -1,0 +1,1876 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DailyCinema Color — ブラウザ完結カラグレ</title>
+<style>
+/* ── リセット & テーマ ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  /* STUDIO LIGHT — 白基調ミニマル */
+  --page:    #FBFAF7;   /* ページ背景 */
+  --bg:      #F1EFE9;   /* プレビュー背景・チップ背景 */
+  --surf:    #FFFFFF;   /* パネル */
+  --border:  #E7E3DB;
+  --text:    #211E1A;
+  --sub:     #9A948B;
+  --muted:   #E8E4DC;   /* スライダー・タイムライントラック */
+  --accent:  #211E1A;   /* アクティブ＝黒 */
+  --gold:    #6F6A61;
+}
+html, body {
+  height: 100%; background: var(--page); color: var(--text);
+  font-family: -apple-system, 'Helvetica Neue', sans-serif;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* ── スタート画面 ─────────────────────────────────────────────── */
+#upload-zone {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 20px;
+}
+#upload-zone.drag { background: rgba(255,114,72,.06); }
+.upload-ring {
+  width: 120px; height: 120px; border-radius: 50%;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: border-color .2s;
+}
+.upload-ring:hover { border-color: var(--sub); }
+.upload-ring svg { opacity: .4; }
+.upload-ring:hover svg { opacity: .7; }
+#upload-zone h1 {
+  font-size: 13px; font-weight: 600; letter-spacing: .2em;
+  color: var(--text); font-family: 'Menlo', monospace;
+}
+#upload-zone p { font-size: 12px; color: var(--sub); }
+#upload-zone .privacy {
+  font-size: 11px; color: var(--gold); opacity: .8;
+}
+#file-input, #cube-input { display: none; }
+
+/* ── アプリ本体（左: プレビュー / 右: カラグレパネル） ───────────── */
+#app { display: none; height: 100%; overflow: hidden; }
+#app.visible { display: flex; flex-direction: column; }
+#topbar {
+  flex-shrink: 0; padding: 13px 22px;
+  background: var(--surf); border-bottom: 1px solid var(--border);
+  font-size: 12px; letter-spacing: .35em; font-weight: 600;
+}
+#app-body { flex: 1; display: flex; min-height: 0; }
+#main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* ── 左サイド: 動画ライブラリ ─────────────────────────────────── */
+#library {
+  width: 178px; flex-shrink: 0;
+  background: var(--surf);
+  border-right: 1px solid var(--border);
+  padding: 10px;
+  display: flex; flex-direction: column; gap: 8px;
+  overflow-y: auto;
+}
+#add-video-btn {
+  width: 100%; padding: 11px 0; flex-shrink: 0;
+  border: 1.5px dashed #C9C3B8; border-radius: 10px;
+  background: transparent; color: var(--text);
+  font-size: 12px; cursor: pointer;
+  transition: all .15s;
+}
+#add-video-btn:hover { border-color: var(--text); }
+#video-list { display: flex; flex-direction: column; gap: 8px; }
+.vid-item {
+  border: 1px solid var(--border); border-radius: 10px;
+  overflow: hidden; cursor: pointer; flex-shrink: 0;
+  position: relative; background: var(--surf);
+  transition: border-color .15s, box-shadow .15s;
+}
+.vid-item:hover { border-color: var(--sub); }
+.vid-item.active { border-color: var(--text); box-shadow: 0 0 0 1px var(--text); }
+.vid-item .v-thumb {
+  width: 100%; height: 84px; object-fit: cover; display: block;
+  background: #000;
+}
+.vid-item div.v-thumb {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--sub); font-size: 10px; font-family: 'Menlo', monospace;
+}
+.vid-item div.v-thumb.bad { color: #A2362B; font-size: 9px; letter-spacing: .04em; background: #F4E9E7; }
+.vid-item .v-name {
+  font-size: 10px; color: var(--sub);
+  padding: 4px 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  font-family: 'Menlo', monospace;
+}
+.vid-item.active .v-name { color: var(--text); }
+.vid-item .v-dur {
+  position: absolute; top: 4px; right: 4px;
+  background: rgba(0,0,0,.6); color: #fff;
+  font-size: 9px; padding: 1px 5px; border-radius: 3px;
+  font-family: 'Menlo', monospace;
+}
+
+#preview-area {
+  flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px;
+  background: var(--bg);
+}
+.border-wrap { position: relative; }
+.border-wrap.on { background: white; box-shadow: 0 2px 14px rgba(33,30,26,.08); }
+.border-wrap canvas { display: block; max-width: 100%; max-height: 100%; touch-action: none; }
+
+/* 比較バー（Before/After） */
+#cmp-line {
+  display: none; position: absolute; width: 2px; z-index: 6;
+  background: #fff; box-shadow: 0 0 6px rgba(0,0,0,.35);
+  cursor: ew-resize; touch-action: none;
+}
+#cmp-grip {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  width: 30px; height: 30px; border-radius: 50%;
+  background: #fff; color: #211E1A;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; letter-spacing: -1px;
+  box-shadow: 0 2px 10px rgba(0,0,0,.3);
+}
+.cmp-tag {
+  display: none; position: absolute; z-index: 5;
+  font-size: 9px; letter-spacing: .15em; font-weight: 600;
+  padding: 3px 9px; border-radius: 999px;
+  background: rgba(255,255,255,.85); color: #211E1A;
+  font-family: 'Menlo', monospace; pointer-events: none;
+}
+
+/* 再生ボタン（一時停止中・再生終了後に表示） */
+#play-btn {
+  display: none; position: absolute; z-index: 7;
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: 62px; height: 62px; border-radius: 50%;
+  border: none; cursor: pointer;
+  background: rgba(33,30,26,.55); color: #fff;
+  font-size: 20px; padding-left: 5px;
+  backdrop-filter: blur(2px);
+  align-items: center; justify-content: center;
+}
+#play-btn.show { display: flex; }
+.date-badge {
+  display: none;
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: 28px;
+  align-items: center; justify-content: center;
+  font-family: 'Menlo', monospace;
+  font-size: 11px; color: #737373;
+  pointer-events: none;
+}
+.date-badge.band { display: flex; }
+.date-badge.overlay {
+  display: flex;
+  justify-content: flex-end; align-items: flex-end;
+  right: 12px; bottom: 8px; left: auto; height: auto;
+  color: #fff; text-shadow: 0 1px 6px rgba(0,0,0,.6);
+}
+
+#controls {
+  flex-shrink: 0;
+  background: var(--surf);
+  border-top: 1px solid var(--border);
+  padding: 10px 16px 14px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* トリムタイムライン */
+.timeline-row { display: flex; flex-direction: column; gap: 4px; }
+.timeline-track {
+  position: relative; height: 26px;
+  background: var(--muted); border-radius: 999px;
+  cursor: pointer; overflow: visible;
+}
+.range-fill {
+  position: absolute; top: 0; bottom: 0;
+  background: rgba(33,30,26,.08);
+  pointer-events: none;
+}
+.t-handle {
+  position: absolute; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px; height: 28px;
+  background: var(--accent);
+  border-radius: 3px; cursor: ew-resize;
+  z-index: 2;
+}
+.t-handle.out { background: var(--gold); }
+.playhead {
+  position: absolute; top: -4px; bottom: -4px;
+  width: 2px; background: var(--gold);
+  transform: translateX(-50%);
+  pointer-events: none; z-index: 3;
+}
+.time-labels {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--sub);
+  font-family: 'Menlo', monospace;
+}
+
+/* 設定行 */
+.settings-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.seg-group {
+  display: flex; background: var(--surf);
+  border: 1px solid var(--border); border-radius: 999px; overflow: hidden;
+}
+.seg-btn {
+  padding: 6px 13px; background: transparent;
+  color: var(--sub); font-size: 11px;
+  cursor: pointer; border: none; outline: none;
+  border-radius: 999px;
+  transition: all .15s;
+}
+.seg-btn.active { background: var(--text); color: #fff; font-weight: 700; }
+
+.toggle-btn {
+  padding: 6px 14px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--sub);
+  font-size: 11px; cursor: pointer;
+  transition: all .15s;
+}
+.toggle-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+.spacer { flex: 1; }
+
+#export-btn {
+  padding: 9px 26px; border-radius: 999px; border: none;
+  background: var(--text); color: #fff;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: .14em;
+  cursor: pointer; transition: opacity .15s;
+  white-space: nowrap;
+}
+#export-btn:disabled { opacity: .4; cursor: default; }
+
+/* ── 右サイドパネル ───────────────────────────────────────────── */
+#side {
+  width: 290px; flex-shrink: 0;
+  background: var(--surf);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 18px;
+}
+.panel-title {
+  font-size: 10px; letter-spacing: .15em; color: var(--sub);
+  font-family: 'Menlo', monospace;
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.mini-btn {
+  padding: 3px 10px; font-size: 10px;
+  border: 1px solid var(--border); border-radius: 999px;
+  background: transparent; color: var(--sub);
+  cursor: pointer; font-family: 'Menlo', monospace;
+}
+.mini-btn:hover { color: var(--text); border-color: var(--sub); }
+
+.save-bottom { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); }
+.save-note { font-size: 10px; color: var(--sub); line-height: 1.7; margin-bottom: 8px; }
+.preset-save { display: flex; gap: 6px; margin-bottom: 8px; }
+.preset-save input {
+  flex: 1; min-width: 0;
+  background: var(--page); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--text); font-size: 12px; padding: 7px 12px; outline: none;
+}
+.preset-save input:focus { border-color: var(--sub); }
+.preset-save button {
+  padding: 7px 16px; border: none; border-radius: 999px;
+  background: var(--text); color: #fff;
+  font-size: 11px; font-weight: 700; cursor: pointer;
+  white-space: nowrap;
+}
+#preset-list { display: flex; flex-direction: column; gap: 4px; }
+.preset-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 10px; border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--surf);
+  cursor: pointer; transition: border-color .15s;
+}
+.preset-item:hover { border-color: var(--sub); }
+.preset-item.active { border-color: var(--accent); }
+.preset-item .p-name { flex: 1; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preset-item .p-act {
+  border: none; background: none; color: var(--sub);
+  font-size: 12px; cursor: pointer; padding: 0 2px; line-height: 1;
+  font-family: 'Menlo', monospace;
+}
+.preset-item .p-act:hover { color: var(--accent); }
+.preset-empty { font-size: 11px; color: var(--sub); padding: 2px; }
+
+.lut-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.lut-btn {
+  padding: 5px 13px; border-radius: 999px;
+  border: none;
+  background: var(--bg); color: #6F6A61;
+  font-size: 11px; cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+}
+.lut-btn:hover { color: var(--text); }
+.lut-btn.active {
+  background: var(--text); color: #fff; font-weight: 700;
+}
+
+.slider-row { display: flex; flex-direction: column; gap: 2px; margin-bottom: 9px; }
+.slider-head { display: flex; justify-content: space-between; font-size: 11px; color: var(--text); }
+.slider-head .s-right { display: flex; align-items: center; gap: 7px; }
+.slider-head .s-val { color: var(--sub); font-family: 'Menlo', monospace; font-size: 10px; }
+.s-reset {
+  border: none; background: none; padding: 0; line-height: 1;
+  color: #C9C3B8; font-size: 12px; cursor: pointer;
+}
+.s-reset:hover { color: var(--text); }
+.slider-row input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 3px; border-radius: 2px;
+  background: var(--muted); outline: none; cursor: pointer;
+}
+.slider-row input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 13px; height: 13px; border-radius: 50%;
+  background: var(--text); cursor: pointer; border: none;
+}
+.slider-row input[type=range]:hover::-webkit-slider-thumb { background: var(--accent); }
+
+/* ── 書き出しオーバーレイ ─────────────────────────────────────── */
+#loading {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(251,250,247,.9);
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px;
+}
+#loading.show { display: flex; }
+#loading p { font-size: 12px; color: var(--gold); }
+.progress-track {
+  width: 280px; height: 4px; border-radius: 2px; background: var(--muted);
+  overflow: hidden;
+}
+#progress-fill {
+  width: 0%; height: 100%;
+  background: var(--text);
+  transition: width .2s;
+}
+.spinner {
+  width: 36px; height: 36px; border-radius: 50%;
+  border: 2px solid var(--muted);
+  border-top-color: var(--text);
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+#toast {
+  display: none; position: fixed; bottom: 80px; left: 50%;
+  transform: translateX(-50%);
+  background: #211E1A; color: #fff;
+  font-size: 12px; padding: 9px 18px; border-radius: 999px;
+  z-index: 200; white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(33,30,26,.25);
+}
+#toast.err { background: #A2362B; color: #fff; }
+
+/* ── 書き出し完了ダイアログ ──────────────────────────────────── */
+#export-done {
+  display: none; position: fixed; inset: 0; z-index: 150;
+  background: rgba(33,30,26,.35);
+  align-items: center; justify-content: center;
+}
+#export-done.show { display: flex; }
+.ed-card {
+  width: 290px; background: var(--surf); border-radius: 18px;
+  padding: 22px 20px; text-align: center;
+  box-shadow: 0 12px 40px rgba(33,30,26,.25);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.ed-title { font-size: 14px; font-weight: 700; letter-spacing: .08em; }
+.ed-note  { font-size: 11px; color: var(--sub); line-height: 1.7; margin-bottom: 4px; }
+.ed-main {
+  border: none; border-radius: 999px; padding: 11px 0;
+  background: var(--text); color: #fff; font-size: 13px; font-weight: 700;
+  cursor: pointer;
+}
+.ed-sub {
+  border: 1px solid var(--border); border-radius: 999px; padding: 10px 0;
+  background: transparent; color: var(--text); font-size: 12px; cursor: pointer;
+}
+.ed-close {
+  border: none; background: none; color: var(--sub);
+  font-size: 11px; cursor: pointer; padding: 4px;
+}
+
+/* ── モバイル（縦持ち）レイアウト ─────────────────────────────── */
+@media (max-width: 768px) {
+  html, body { overflow: auto; }
+  /* overflow:hidden のままだと #main の position:sticky が効かない */
+  #app.visible { height: auto; min-height: 100%; overflow: visible; }
+  #app-body { flex-direction: column; overflow: visible; }
+  #topbar { text-align: center; padding: 10px; font-size: 10px; }
+  #library {
+    width: 100%; flex-direction: row; align-items: center;
+    border-right: none; border-bottom: 1px solid var(--border);
+    overflow-x: auto; overflow-y: hidden;
+    padding: 8px;
+  }
+  #add-video-btn { width: 84px; height: 62px; flex-shrink: 0; font-size: 11px; padding: 0; }
+  #video-list { flex-direction: row; }
+  .vid-item { width: 92px; }
+  .vid-item .v-thumb { height: 46px; }
+  .vid-item .v-dur { display: none; }
+  /* プレビュー＋操作列を上部に固定し、下のスライダーを見ながら調整できるようにする */
+  #main {
+    flex: none;
+    position: sticky; top: 0; z-index: 30;
+    background: var(--page);
+    box-shadow: 0 8px 18px -10px rgba(33,30,26,.22);
+  }
+  #preview-area { height: 40vh; flex: none; padding: 8px; }
+  #controls { padding: 8px 12px 10px; gap: 8px; }
+  #side { width: 100%; border-left: none; border-top: 1px solid var(--border); }
+  #upload-zone p { padding: 0 24px; text-align: center; }
+}
+.timeline-track, .t-handle { touch-action: none; }
+</style>
+</head>
+<body>
+
+<!-- スタート画面 -->
+<div id="upload-zone">
+  <div class="upload-ring" onclick="document.getElementById('file-input').click()">
+    <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+  </div>
+  <h1>DAILY CINEMA COLOR</h1>
+  <p>動画をドロップ、またはクリックして選択</p>
+  <p class="privacy">動画はどこにもアップロードされません — すべてこの端末の中で処理されます</p>
+  <input type="file" id="file-input" accept="video/*,.mp4,.mov,.m4v" multiple>
+  <input type="file" id="cube-input" accept=".cube">
+</div>
+
+<!-- アプリ本体 -->
+<div id="app">
+  <div id="topbar">DAILY CINEMA COLOR</div>
+  <div id="app-body">
+
+  <!-- 左: 動画ライブラリ -->
+  <div id="library">
+    <button id="add-video-btn" onclick="document.getElementById('file-input').click()">＋ 動画を追加</button>
+    <div id="video-list"></div>
+  </div>
+
+  <div id="main">
+    <div id="preview-area">
+      <div class="border-wrap" id="border-wrap">
+        <canvas id="gl-canvas"></canvas>
+        <div class="date-badge" id="date-badge"></div>
+        <span class="cmp-tag" id="cmp-tag-b">BEFORE</span>
+        <span class="cmp-tag" id="cmp-tag-a">AFTER</span>
+        <div id="cmp-line"><div id="cmp-grip">◂ ▸</div></div>
+        <button id="play-btn" onclick="playVideo()">▶</button>
+      </div>
+    </div>
+
+    <div id="controls">
+      <div class="timeline-row">
+        <div class="timeline-track" id="timeline">
+          <div class="range-fill"  id="range-fill"></div>
+          <div class="t-handle in"  id="in-handle"></div>
+          <div class="t-handle out" id="out-handle"></div>
+          <div class="playhead"     id="playhead"></div>
+        </div>
+        <div class="time-labels">
+          <span id="lbl-in">0:00</span>
+          <span id="lbl-cur">0:00</span>
+          <span id="lbl-out">0:00</span>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <div class="seg-group">
+          <button class="seg-btn active" data-aspect="original" onclick="setAspect(this)">Original</button>
+          <button class="seg-btn"        data-aspect="16:9"     onclick="setAspect(this)">16:9</button>
+          <button class="seg-btn"        data-aspect="4:3"      onclick="setAspect(this)">4:3</button>
+          <button class="seg-btn"        data-aspect="3:2"      onclick="setAspect(this)">3:2</button>
+        </div>
+        <button class="toggle-btn active" id="zoom-ind" style="display:none" onclick="resetZoom()" title="ズームと位置をリセット">100% ↺</button>
+        <button class="toggle-btn" id="border-btn" onclick="toggleBorder()">枠</button>
+        <button class="toggle-btn" id="date-btn"   onclick="toggleDate()">日付</button>
+        <button class="toggle-btn" id="cmp-btn"    onclick="toggleCompare()">Before/After</button>
+        <div class="spacer"></div>
+        <button id="export-btn" onclick="doExport()">EXPORT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右: カラグレパネル -->
+  <div id="side">
+    <div>
+      <div class="panel-title">フィルムベース
+        <button class="mini-btn" onclick="document.getElementById('cube-input').click()">+.cube読込</button>
+      </div>
+      <div class="lut-row" id="lut-row"></div>
+    </div>
+
+    <div>
+      <div class="panel-title">MY COLOR（保存した色）</div>
+      <div id="preset-list"></div>
+    </div>
+
+    <div>
+      <div class="panel-title">調整
+        <button class="mini-btn" onclick="resetParams()">リセット</button>
+      </div>
+      <div id="sliders"></div>
+    </div>
+
+    <!-- 名前をつけて保存（常に一番下） -->
+    <div class="save-bottom">
+      <div class="panel-title">名前をつけて保存</div>
+      <p class="save-note">いまの色（フィルムベース＋調整値）を MY COLOR に登録します。登録した色は別の動画にも1タップで使えます。</p>
+      <div class="preset-save">
+        <input id="preset-name" placeholder="例: 夕暮れフィルム" maxlength="40">
+        <button onclick="savePreset()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  </div><!-- /app-body -->
+</div>
+
+<!-- 書き出しオーバーレイ -->
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="progress-track"><div id="progress-fill"></div></div>
+  <p id="loading-msg">書き出し中…</p>
+</div>
+
+<!-- 書き出し完了（スマホ: 写真アプリへの保存導線） -->
+<div id="export-done">
+  <div class="ed-card">
+    <div class="ed-title">書き出し完了</div>
+    <p class="ed-note" id="ed-note"></p>
+    <button class="ed-main" id="share-btn" onclick="shareExport()">写真に保存</button>
+    <button class="ed-sub"  onclick="downloadExport()">ファイルに保存</button>
+    <button class="ed-close" onclick="closeExportDone()">閉じる</button>
+  </div>
+</div>
+<div id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+//  DailyCinema Color — ブラウザ完結版
+//  動画の読み込み・カラグレ・書き出しまで全てローカル（端末内）で処理する。
+//  サーバー通信は同梱LUTファイル(luts/*.cube)の取得のみ。
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── 状態 ──────────────────────────────────────────────────────────────────────
+const PARAM_DEFAULTS = { temp:0, tint:0, expo:0, contrast:0, hi:0, sh:0, sat:0, fade:0 };
+const LS_PRESETS  = 'dcc_presets';
+const LS_USERLUTS = 'dcc_user_luts';
+
+const S = {
+  luts: [],            // 同梱LUT名の配列
+  userLuts: {},        // ユーザー読込LUT { name: cubeText }
+  presets: [],         // [{name, lut, params, created}]
+  videos: [],          // 取り込んだ動画 [{id, name, url, thumb, duration}]
+  activeVideo: '',
+  switching: false,    // 動画切替中フラグ（レンダリング・seekループを止める）
+  fileLoaded: false,
+  videoW: 1920, videoH: 1080, duration: 0,
+  currentLut: '',
+  params: { ...PARAM_DEFAULTS },
+  activePreset: '',
+  aspect: 'original',
+  border: false,
+  date:   false,
+  compare: false,     // Before/After 比較バー
+  cmpTouched: false,  // ユーザーが比較トグルを操作したか（初回は自動ONにする）
+  split:   0.5,       // 比較バー位置（キャンバス幅に対する割合）
+  zoom: 1,            // 拡大率（1〜4）
+  offX: 0, offY: 0,   // クロップ窓のずらし量（テクスチャ座標）
+  inTime: 0, outTime: 0,
+};
+const ASPECTS = { '16:9': 16/9, '4:3': 4/3, '3:2': 3/2 };
+// 表示するフィルムベース（同梱lutsから絞り込み・この並び順）
+const FILM_ALLOWED = ['daily', 'usui_ao', 'portra'];
+
+const SLIDERS = [
+  ['temp',     '色温度',       -100, 100, 100],
+  ['tint',     'ティント',     -100, 100, 100],
+  ['expo',     '露光量',       -200, 200, 100],
+  ['contrast', 'コントラスト', -100, 100, 100],
+  ['hi',       'ハイライト',   -100, 100, 100],
+  ['sh',       'シャドウ',     -100, 100, 100],
+  ['sat',      '彩度',         -100, 100, 100],
+  ['fade',     'フェード',        0, 100, 100],
+];
+
+// ── DOM ───────────────────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('upload-zone');
+const appEl      = document.getElementById('app');
+const glCanvas   = document.getElementById('gl-canvas');
+const borderWrap = document.getElementById('border-wrap');
+const dateBadge  = document.getElementById('date-badge');
+const timeline   = document.getElementById('timeline');
+const inHandle   = document.getElementById('in-handle');
+const outHandle  = document.getElementById('out-handle');
+const playhead   = document.getElementById('playhead');
+const rangeFill  = document.getElementById('range-fill');
+
+function dateString() {
+  const now  = new Date();
+  const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+  const pad  = n => String(n).padStart(2,'0');
+  return `${now.getFullYear()}/${pad(now.getMonth()+1)}/${pad(now.getDate())} ${days[now.getDay()]}`;
+}
+dateBadge.textContent = dateString();
+
+// ── WebGL 2 ───────────────────────────────────────────────────────────────────
+const gl = glCanvas.getContext('webgl2', { preserveDrawingBuffer: true });
+if (!gl) { alert('WebGL 2 が必要です（Chrome / Safari 最新版）'); }
+
+const VERT = `#version 300 es
+in vec2 aPos;
+out vec2 vUV;
+void main() {
+  vUV = aPos * 0.5 + 0.5;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+// ※ grade() の数式は下の gradeJS() と完全に同一に保つこと（.cube焼き出しの色一致）
+const FRAG = `#version 300 es
+precision highp float;
+precision highp sampler3D;
+uniform sampler2D uVideo;
+uniform sampler3D uLut;
+uniform float uLutN;
+uniform float uUseLut;
+uniform vec4  uWin;     // 表示窓（画角クロップ＋ズーム＋パン）: xy=原点 zw=サイズ
+uniform float uSplit;   // 比較バー位置（0-1）。負の値で比較OFF
+uniform float uTemp, uTint, uExpo, uContrast, uHi, uSh, uSat, uFade;
+in vec2 vUV;
+out vec4 oColor;
+
+const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
+
+vec3 grade(vec3 c) {
+  c *= vec3(1.0 + 0.3*uTemp, 1.0 - 0.2*uTint, 1.0 - 0.3*uTemp);
+  c *= exp2(uExpo);
+  c = (c - 0.5) * (1.0 + uContrast) + 0.5;
+  float luma = dot(clamp(c, 0.0, 1.0), LUMA);
+  c += 0.3 * uHi * smoothstep(0.55, 1.0, luma);
+  c += 0.3 * uSh * (1.0 - smoothstep(0.0, 0.45, luma));
+  float g = dot(clamp(c, 0.0, 1.0), LUMA);
+  c = vec3(g) + (c - vec3(g)) * (1.0 + uSat);
+  float k = 0.15 * uFade;
+  c = c * (1.0 - k) + k;
+  return clamp(c, 0.0, 1.0);
+}
+
+void main() {
+  vec2 uv = vec2(vUV.x, 1.0 - vUV.y);
+
+  // 表示窓（画角クロップ＋ズーム＋パン）。窓の計算はJS側 cropWindow() と共通
+  uv = uWin.xy + uv * uWin.zw;
+
+  if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+    oColor = vec4(0.0, 0.0, 0.0, 1.0); return;
+  }
+
+  vec3 c = clamp(texture(uVideo, uv).rgb, 0.0, 1.0);
+
+  // 比較モード: バーより左は元の色のまま表示（uSplit<0 で無効＝全面アフター）
+  if (uSplit < 0.0 || vUV.x >= uSplit) {
+    if (uUseLut > 0.5) {
+      vec3 coord = (c * (uLutN - 1.0) + 0.5) / uLutN;
+      c = texture(uLut, coord).rgb;
+    }
+    c = grade(c);
+  }
+
+  oColor = vec4(c, 1.0);
+}`;
+
+function compileShader(type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src);
+  gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS))
+    throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+const prog = (() => {
+  const p = gl.createProgram();
+  gl.attachShader(p, compileShader(gl.VERTEX_SHADER,   VERT));
+  gl.attachShader(p, compileShader(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(p);
+  return p;
+})();
+const U = {};
+['uVideo','uLut','uLutN','uUseLut','uWin','uSplit',
+ 'uTemp','uTint','uExpo','uContrast','uHi','uSh','uSat','uFade']
+  .forEach(n => U[n] = gl.getUniformLocation(prog, n));
+
+const vao = gl.createVertexArray();
+gl.bindVertexArray(vao);
+const buf = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+gl.bufferData(gl.ARRAY_BUFFER,
+  new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+const aPos = gl.getAttribLocation(prog, 'aPos');
+gl.enableVertexAttribArray(aPos);
+gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+gl.bindVertexArray(null);
+
+const videoTex = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, videoTex);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+let lutTex  = gl.createTexture();
+let lutSize = 2;
+gl.bindTexture(gl.TEXTURE_3D, lutTex);
+gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+const passLut = new Uint8Array([0,0,0,255, 255,0,0,255, 0,255,0,255, 255,255,0,255,
+                                 0,0,255,255, 255,0,255,255, 0,255,255,255, 255,255,255,255]);
+gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, 2, 2, 2, 0, gl.RGBA, gl.UNSIGNED_BYTE, passLut);
+
+// ── 動画要素 ──────────────────────────────────────────────────────────────────
+const video = document.createElement('video');
+video.muted = true; video.loop = false; video.playsInline = true;
+video.addEventListener('error', () => {
+  showToast('この動画はこのブラウザで再生できません（Chrome/Safari最新版でお試しください）', true);
+});
+video.addEventListener('timeupdate', () => {
+  if (S.switching) return;
+  if (!EX.active && video.currentTime >= S.outTime) {
+    video.currentTime = S.inTime;
+    if (!video.paused) video.play();
+  }
+  updatePlayhead();
+});
+
+// 再生ボタン: 停止中・再生終了後に中央に表示する
+function playVideo() { video.play().catch(() => {}); }
+function updatePlayBtn() {
+  document.getElementById('play-btn').classList.toggle('show',
+    S.fileLoaded && !EX.active && video.paused);
+}
+video.addEventListener('play',  updatePlayBtn);
+video.addEventListener('pause', updatePlayBtn);
+video.addEventListener('ended', updatePlayBtn);
+
+// ── 書き出し状態 ──────────────────────────────────────────────────────────────
+const EX = {
+  active: false, end: 0,
+  canvas: document.createElement('canvas'),
+  ctx: null,
+  vw: 0, vh: 0, bw: 0, bb: 0,
+  recorder: null, chunks: [],
+  stream: null,   // captureStream の参照を保持して finishExport で確実に停止する
+};
+EX.ctx = EX.canvas.getContext('2d');
+
+// ── レンダリングループ ─────────────────────────────────────────────────────────
+function targetAspect() {
+  if (!(S.aspect in ASPECTS)) return 0;
+  const r = ASPECTS[S.aspect];
+  const a = S.videoW / S.videoH;
+  return a < 1 ? 1 / r : r;   // 縦動画は縦向き比率（16:9→9:16）に自動変換
+}
+
+// 表示窓 = 画角クロップ × ズーム × パン（テクスチャ座標系・シェーダーと書き出しで共用）
+function cropWindow() {
+  const t = targetAspect();
+  const a = S.videoW / S.videoH;
+  let sx = 1, sy = 1;
+  if (t > 0) {
+    if (a > t) sx = t / a; else sy = a / t;
+  }
+  sx /= S.zoom; sy /= S.zoom;
+  // はみ出さない範囲にパン量をクランプ
+  const mx = (1 - sx) / 2, my = (1 - sy) / 2;
+  S.offX = Math.max(-mx, Math.min(mx, S.offX));
+  S.offY = Math.max(-my, Math.min(my, S.offY));
+  return { sx, sy, ox: 0.5 - sx / 2 + S.offX, oy: 0.5 - sy / 2 + S.offY };
+}
+
+// ── パン＆ズーム操作（ドラッグで位置調整・ピンチ/ホイールで拡大） ──────────────
+let panMoved = false;
+{
+  const ptrs = new Map();
+  let panPtr = null, lastPan = null, pinch = null;
+
+  glCanvas.addEventListener('pointerdown', e => {
+    if (!S.fileLoaded || EX.active) return;
+    ptrs.set(e.pointerId, e);
+    try { glCanvas.setPointerCapture(e.pointerId); } catch {}
+    if (ptrs.size === 2) {
+      const [p1, p2] = [...ptrs.values()];
+      pinch = { d0: Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY) || 1, z0: S.zoom };
+      panPtr = null; lastPan = null;
+    } else {
+      panPtr = e.pointerId; panMoved = false;
+      lastPan = { x: e.clientX, y: e.clientY };
+    }
+  });
+
+  glCanvas.addEventListener('pointermove', e => {
+    if (!ptrs.has(e.pointerId)) return;
+    ptrs.set(e.pointerId, e);
+    if (pinch && ptrs.size === 2) {
+      const [p1, p2] = [...ptrs.values()];
+      const d = Math.hypot(p1.clientX - p2.clientX, p1.clientY - p2.clientY) || 1;
+      S.zoom = Math.min(4, Math.max(1, pinch.z0 * d / pinch.d0));
+      panMoved = true;
+      updateZoomUI();
+      return;
+    }
+    if (e.pointerId !== panPtr || !lastPan) return;
+    const dx = e.clientX - lastPan.x, dy = e.clientY - lastPan.y;
+    if (Math.abs(dx) + Math.abs(dy) > 3) panMoved = true;
+    const r = glCanvas.getBoundingClientRect();
+    const win = cropWindow();
+    S.offX -= dx / r.width  * win.sx;
+    S.offY -= dy / r.height * win.sy;
+    lastPan = { x: e.clientX, y: e.clientY };
+    updateZoomUI();
+  });
+
+  const endPtr = e => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size < 2) pinch = null;
+    if (e.pointerId === panPtr) { panPtr = null; lastPan = null; }
+  };
+  glCanvas.addEventListener('pointerup', endPtr);
+  glCanvas.addEventListener('pointercancel', endPtr);
+
+  // PC: ホイールでズーム
+  glCanvas.addEventListener('wheel', e => {
+    if (!S.fileLoaded || EX.active) return;
+    e.preventDefault();
+    S.zoom = Math.min(4, Math.max(1, S.zoom * (e.deltaY < 0 ? 1.06 : 0.94)));
+    updateZoomUI();
+  }, { passive: false });
+}
+
+function updateZoomUI() {
+  const b = document.getElementById('zoom-ind');
+  const active = S.zoom > 1.001 || Math.abs(S.offX) > 1e-4 || Math.abs(S.offY) > 1e-4;
+  b.style.display = active ? '' : 'none';
+  if (active) b.textContent = `${Math.round(S.zoom * 100)}% ↺`;
+}
+
+function resetZoom() {
+  S.zoom = 1; S.offX = 0; S.offY = 0;
+  updateZoomUI();
+}
+
+function render() {
+  requestAnimationFrame(render);
+  if (video.readyState < 2 || !S.fileLoaded) return;
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, videoTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_3D, lutTex);
+
+  gl.useProgram(prog);
+  gl.uniform1i(U.uVideo,  0);
+  gl.uniform1i(U.uLut,    1);
+  gl.uniform1f(U.uLutN,   lutSize);
+  gl.uniform1f(U.uUseLut, S.currentLut ? 1 : 0);
+  const win = cropWindow();
+  gl.uniform4f(U.uWin, win.ox, win.oy, win.sx, win.sy);
+  // 書き出し中は比較バーを映像に焼き込まない
+  gl.uniform1f(U.uSplit, (S.compare && !EX.active) ? S.split : -1.0);
+  const p = S.params;
+  gl.uniform1f(U.uTemp, p.temp);     gl.uniform1f(U.uTint, p.tint);
+  gl.uniform1f(U.uExpo, p.expo);     gl.uniform1f(U.uContrast, p.contrast);
+  gl.uniform1f(U.uHi,   p.hi);       gl.uniform1f(U.uSh,   p.sh);
+  gl.uniform1f(U.uSat,  p.sat);      gl.uniform1f(U.uFade, p.fade);
+
+  gl.viewport(0, 0, glCanvas.width, glCanvas.height);
+  gl.bindVertexArray(vao);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  gl.bindVertexArray(null);
+
+  if (EX.active) compositeExportFrame();
+}
+requestAnimationFrame(render);
+
+// 書き出し用: GL出力を2Dキャンバスに合成（白枠・日付つき）
+function compositeExportFrame() {
+  const c = EX.ctx, W = EX.canvas.width, H = EX.canvas.height;
+  if (EX.bw || EX.bb) { c.fillStyle = '#ffffff'; c.fillRect(0, 0, W, H); }
+  c.drawImage(glCanvas, EX.bw, EX.bw, EX.vw, EX.vh);
+  if (S.date) {
+    const fs = Math.max(14, Math.round(Math.min(EX.vw, EX.vh) * 0.024));
+    c.font = `${fs}px Menlo, monospace`;
+    if (S.border) {
+      c.fillStyle = '#737373';
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.shadowColor = 'transparent';
+      c.fillText(dateString(), W / 2, H - EX.bb / 2);
+    } else {
+      c.fillStyle = '#ffffff';
+      c.textAlign = 'right'; c.textBaseline = 'bottom';
+      c.shadowColor = 'rgba(0,0,0,.55)'; c.shadowBlur = fs * 0.4;
+      c.fillText(dateString(), W - fs, H - fs * 0.8);
+      c.shadowColor = 'transparent'; c.shadowBlur = 0;
+    }
+  }
+  // 進捗
+  const span = EX.end - S.inTime;
+  const pct  = span > 0 ? Math.min(100, (video.currentTime - S.inTime) / span * 100) : 0;
+  document.getElementById('progress-fill').style.width = pct.toFixed(1) + '%';
+}
+
+// ── .cube パーサー（float精度のまま保持） ─────────────────────────────────────
+function parseCubeFloat(text) {
+  let size = 0;
+  const rgb = [];
+  for (const line of text.split('\n')) {
+    const s = line.trim();
+    if (!s || s.startsWith('#')) continue;
+    if (s.startsWith('LUT_3D_SIZE')) { size = parseInt(s.split(/\s+/)[1]); continue; }
+    if (/^(TITLE|DOMAIN)/.test(s)) continue;
+    const v = s.split(/\s+/).map(Number);
+    if (v.length >= 3) rgb.push(v[0], v[1], v[2]);
+  }
+  return { size, rgb: new Float32Array(rgb) };
+}
+
+function lutToTexture(lut) {
+  const n    = lut.size;
+  const data = new Uint8Array(n * n * n * 4);
+  for (let i = 0; i < n * n * n; i++) {
+    data[i*4]   = Math.round(lut.rgb[i*3]   * 255);
+    data[i*4+1] = Math.round(lut.rgb[i*3+1] * 255);
+    data[i*4+2] = Math.round(lut.rgb[i*3+2] * 255);
+    data[i*4+3] = 255;
+  }
+  const t = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_3D, t);
+  gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
+  gl.texImage3D(gl.TEXTURE_3D, 0, gl.RGBA8, n, n, n, 0, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.deleteTexture(lutTex);
+  lutTex  = t;
+  lutSize = n;
+}
+
+const lutCache = {};   // name → {size, rgb}
+async function getLutData(name) {
+  if (lutCache[name]) return lutCache[name];
+  let text;
+  if (S.userLuts[name]) {
+    text = S.userLuts[name];
+  } else {
+    const r = await fetch(`luts/${encodeURIComponent(name)}.cube`);
+    if (!r.ok) throw new Error(`LUT load failed: ${r.status}`);
+    text = await r.text();
+  }
+  return (lutCache[name] = parseCubeFloat(text));
+}
+
+// ── カラグレ数式の JS 版（GLSL grade() と完全同一に保つこと） ──────────────────
+function smoothstepJS(e0, e1, x) {
+  const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0)));
+  return t * t * (3 - 2 * t);
+}
+function gradeJS(r, g, b, p) {
+  r *= 1 + 0.3 * p.temp; g *= 1 - 0.2 * p.tint; b *= 1 - 0.3 * p.temp;
+  const ev = Math.pow(2, p.expo);
+  r *= ev; g *= ev; b *= ev;
+  r = (r - 0.5) * (1 + p.contrast) + 0.5;
+  g = (g - 0.5) * (1 + p.contrast) + 0.5;
+  b = (b - 0.5) * (1 + p.contrast) + 0.5;
+  const cl = v => Math.min(1, Math.max(0, v));
+  const luma = 0.2126 * cl(r) + 0.7152 * cl(g) + 0.0722 * cl(b);
+  const dh = 0.3 * p.hi * smoothstepJS(0.55, 1.0, luma);
+  const ds = 0.3 * p.sh * (1 - smoothstepJS(0.0, 0.45, luma));
+  r += dh + ds; g += dh + ds; b += dh + ds;
+  const gr = 0.2126 * cl(r) + 0.7152 * cl(g) + 0.0722 * cl(b);
+  r = gr + (r - gr) * (1 + p.sat);
+  g = gr + (g - gr) * (1 + p.sat);
+  b = gr + (b - gr) * (1 + p.sat);
+  const k = 0.15 * p.fade;
+  r = r * (1 - k) + k; g = g * (1 - k) + k; b = b * (1 - k) + k;
+  return [cl(r), cl(g), cl(b)];
+}
+
+// ベースLUTのトリリニア補間サンプリング（.cube は r が最速軸）
+function sampleLutJS(lut, r, g, b) {
+  const m = lut.size, mm = m - 1;
+  const x = r * mm, y = g * mm, z = b * mm;
+  const x0 = Math.min(m - 2, Math.floor(x)), fx = x - x0;
+  const y0 = Math.min(m - 2, Math.floor(y)), fy = y - y0;
+  const z0 = Math.min(m - 2, Math.floor(z)), fz = z - z0;
+  const idx = (xi, yi, zi) => ((zi * m + yi) * m + xi) * 3;
+  const out = [0, 0, 0];
+  for (let ch = 0; ch < 3; ch++) {
+    const c000 = lut.rgb[idx(x0,   y0,   z0  ) + ch], c100 = lut.rgb[idx(x0+1, y0,   z0  ) + ch];
+    const c010 = lut.rgb[idx(x0,   y0+1, z0  ) + ch], c110 = lut.rgb[idx(x0+1, y0+1, z0  ) + ch];
+    const c001 = lut.rgb[idx(x0,   y0,   z0+1) + ch], c101 = lut.rgb[idx(x0+1, y0,   z0+1) + ch];
+    const c011 = lut.rgb[idx(x0,   y0+1, z0+1) + ch], c111 = lut.rgb[idx(x0+1, y0+1, z0+1) + ch];
+    const c00 = c000 * (1 - fx) + c100 * fx, c10 = c010 * (1 - fx) + c110 * fx;
+    const c01 = c001 * (1 - fx) + c101 * fx, c11 = c011 * (1 - fx) + c111 * fx;
+    out[ch] = (c00 * (1 - fy) + c10 * fy) * (1 - fz) + (c01 * (1 - fy) + c11 * fy) * fz;
+  }
+  return out;
+}
+
+// プリセット → 33³ .cube テキストに焼き込み
+async function bakeCubeText(lutName, params, title) {
+  const base = lutName ? await getLutData(lutName) : null;
+  const n = 33;
+  const lines = [`# ${title}`, `LUT_3D_SIZE ${n}`];
+  for (let zi = 0; zi < n; zi++) {        // b（最遅軸）
+    for (let yi = 0; yi < n; yi++) {      // g
+      for (let xi = 0; xi < n; xi++) {    // r（最速軸）
+        let r = xi / (n - 1), g = yi / (n - 1), b = zi / (n - 1);
+        if (base) [r, g, b] = sampleLutJS(base, r, g, b);
+        [r, g, b] = gradeJS(r, g, b, params);
+        lines.push(`${r.toFixed(6)} ${g.toFixed(6)} ${b.toFixed(6)}`);
+      }
+    }
+  }
+  return lines.join('\n') + '\n';
+}
+
+function downloadText(filename, text) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain' }));
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+// ── キャンバスサイズ & 枠・日付 ────────────────────────────────────────────────
+function resizeCanvas() {
+  if (EX.active) return;   // 書き出し中はGLキャンバスを書き出し解像度のまま維持
+  const area = document.getElementById('preview-area');
+  const t    = targetAspect();
+  const aspect = t > 0 ? t : S.videoW / S.videoH;
+
+  // まず枠なしの仮サイズを出し、枠幅は書き出しと同じ「短辺の3%」で決める
+  // （固定pxだと小さい画面で枠だけ太く見えてしまうため）
+  let maxW = area.clientWidth  - 24;
+  let maxH = area.clientHeight - 24;
+  let w = maxW, h = w / aspect;
+  if (h > maxH) { h = maxH; w = h * aspect; }
+
+  let bw = 0, bbot = 0;
+  if (S.border) {
+    bw   = Math.max(5, Math.round(Math.min(w, h) * 0.03));
+    bbot = S.date ? bw * 2 : bw;
+    maxW = area.clientWidth  - bw * 2 - 24;
+    maxH = area.clientHeight - bw - bbot - 24;
+    w = maxW; h = w / aspect;
+    if (h > maxH) { h = maxH; w = h * aspect; }
+  }
+
+  // Retina対応: 実ピクセル数は devicePixelRatio 倍で確保（しないとiPhoneでガビガビになる）
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  glCanvas.width  = Math.round(w * dpr);
+  glCanvas.height = Math.round(h * dpr);
+  glCanvas.style.width  = Math.round(w) + 'px';
+  glCanvas.style.height = Math.round(h) + 'px';
+
+  borderWrap.classList.toggle('on', S.border);
+  borderWrap.style.padding = S.border ? `${bw}px ${bw}px ${bbot}px` : '0';
+  dateBadge.className = 'date-badge' + (S.date ? (S.border ? ' band' : ' overlay') : '');
+  if (S.date && S.border) {
+    // 日付帯も枠幅に比例させる（書き出しと同じ見た目に）
+    dateBadge.style.height   = bbot + 'px';
+    dateBadge.style.fontSize = Math.max(8, Math.round(bbot * 0.36)) + 'px';
+  } else {
+    dateBadge.style.height = '';
+    dateBadge.style.fontSize = '';
+  }
+  updateCmpUI();
+}
+
+// ── プリセット（MY COLOR, localStorage） ──────────────────────────────────────
+function loadStore() {
+  try { S.presets  = JSON.parse(localStorage.getItem(LS_PRESETS))  || []; } catch { S.presets  = []; }
+  try { S.userLuts = JSON.parse(localStorage.getItem(LS_USERLUTS)) || {}; } catch { S.userLuts = {}; }
+}
+function persistPresets() {
+  try { localStorage.setItem(LS_PRESETS, JSON.stringify(S.presets)); }
+  catch { showToast('プリセットの保存に失敗しました（容量不足）', true); }
+}
+
+function buildPresetList() {
+  const list = document.getElementById('preset-list');
+  list.innerHTML = '';
+  if (!S.presets.length) {
+    list.innerHTML = '<div class="preset-empty">調整して名前をつけて保存すると、別の動画にも使えます</div>';
+    return;
+  }
+  S.presets.forEach(p => {
+    const item = document.createElement('div');
+    item.className = 'preset-item' + (p.name === S.activePreset ? ' active' : '');
+    const name = document.createElement('span');
+    name.className = 'p-name';
+    name.textContent = p.name;
+    const dl = document.createElement('button');
+    dl.className = 'p-act';
+    dl.textContent = '⤓';
+    dl.title = '.cube としてダウンロード（DaVinci等で使えます）';
+    dl.onclick = async (e) => {
+      e.stopPropagation();
+      try {
+        downloadText(`${p.name}.cube`, await bakeCubeText(p.lut, p.params, p.name));
+        showToast(`「${p.name}.cube」をダウンロードしました`);
+      } catch (err) { showToast('書き出しエラー: ' + err.message, true); }
+    };
+    const del = document.createElement('button');
+    del.className = 'p-act';
+    del.textContent = '×';
+    del.onclick = (e) => { e.stopPropagation(); deletePreset(p.name); };
+    item.appendChild(name);
+    item.appendChild(dl);
+    item.appendChild(del);
+    item.onclick = () => applyPreset(p);
+    list.appendChild(item);
+  });
+}
+
+async function applyPreset(p) {
+  S.activePreset = p.name;
+  S.params = { ...PARAM_DEFAULTS, ...p.params };
+  syncSliders();
+  if (p.lut && !S.luts.includes(p.lut) && !S.userLuts[p.lut]) {
+    showToast(`ベースLUT「${p.lut}」が見つからないため調整値のみ適用`, true);
+    await setLut('');
+  } else {
+    await setLut(p.lut || '');
+  }
+  document.getElementById('preset-name').value = p.name;
+  buildPresetList();
+  showToast(`「${p.name}」を適用しました`);
+}
+
+function savePreset() {
+  const name = document.getElementById('preset-name').value.trim();
+  if (!name) { showToast('プリセット名を入力してください', true); return; }
+  const entry = {
+    name, lut: S.currentLut, params: { ...S.params },
+    created: new Date().toISOString().slice(0, 10),
+  };
+  const i = S.presets.findIndex(p => p.name === name);
+  if (i >= 0) S.presets[i] = entry; else S.presets.push(entry);
+  persistPresets();
+  S.activePreset = name;
+  buildPresetList();
+  document.getElementById('preset-name').value = '';
+  showToast(`「${name}」をMY COLORに保存しました`);
+}
+
+function deletePreset(name) {
+  if (!confirm(`「${name}」を削除しますか？`)) return;
+  S.presets = S.presets.filter(p => p.name !== name);
+  persistPresets();
+  if (S.activePreset === name) S.activePreset = '';
+  buildPresetList();
+}
+
+// ── フィルムベース LUT ────────────────────────────────────────────────────────
+function allLutNames() {
+  return [...S.luts, ...Object.keys(S.userLuts)];
+}
+
+function buildLutButtons() {
+  const row = document.getElementById('lut-row');
+  row.innerHTML = '';
+  ['', ...allLutNames()].forEach(name => {
+    const btn = document.createElement('button');
+    btn.className = 'lut-btn' + (name === S.currentLut ? ' active' : '');
+    btn.dataset.lut = name;
+    btn.textContent = name || 'なし';
+    btn.onclick = () => setLut(name);
+    row.appendChild(btn);
+  });
+}
+
+async function setLut(name) {
+  S.currentLut = name;
+  document.querySelectorAll('.lut-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.lut === name));
+  if (name) {
+    try { lutToTexture(await getLutData(name)); }
+    catch (e) { showToast('LUT読み込みエラー: ' + e.message, true); S.currentLut = ''; }
+  }
+}
+
+// ユーザー .cube 読み込み
+document.getElementById('cube-input').addEventListener('change', async e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const text = await file.text();
+  const name = file.name.replace(/\.cube$/i, '');
+  const lut  = parseCubeFloat(text);
+  if (!lut.size || lut.rgb.length !== lut.size ** 3 * 3) {
+    showToast('.cube ファイルを解析できませんでした', true); return;
+  }
+  S.userLuts[name] = text;
+  delete lutCache[name];
+  try { localStorage.setItem(LS_USERLUTS, JSON.stringify(S.userLuts)); }
+  catch { showToast('容量超過のためこのLUTは今回のみ有効です', true); }
+  buildLutButtons();
+  await setLut(name);
+  e.target.value = '';
+});
+
+// ── 調整スライダー ────────────────────────────────────────────────────────────
+function buildSliders() {
+  const box = document.getElementById('sliders');
+  box.innerHTML = '';
+  SLIDERS.forEach(([key, label, min, max, div]) => {
+    const row = document.createElement('div');
+    row.className = 'slider-row';
+    row.innerHTML = `
+      <div class="slider-head">
+        <span>${label}</span>
+        <span class="s-right">
+          <span class="s-val" id="val-${key}">0</span>
+          <button class="s-reset" title="${label}を0に戻す">↺</button>
+        </span>
+      </div>
+      <input type="range" id="sl-${key}" min="${min}" max="${max}" value="0" step="1">`;
+    box.appendChild(row);
+    const input = row.querySelector('input');
+    input.addEventListener('input', () => {
+      S.params[key] = input.value / div;
+      document.getElementById(`val-${key}`).textContent =
+        (input.value > 0 ? '+' : '') + input.value;
+    });
+    input.addEventListener('dblclick', () => {
+      input.value = 0;
+      input.dispatchEvent(new Event('input'));
+    });
+    row.querySelector('.s-reset').addEventListener('click', () => {
+      input.value = 0;
+      input.dispatchEvent(new Event('input'));
+    });
+  });
+}
+
+function syncSliders() {
+  SLIDERS.forEach(([key, , , , div]) => {
+    const raw = Math.round((S.params[key] || 0) * div);
+    document.getElementById(`sl-${key}`).value = raw;
+    document.getElementById(`val-${key}`).textContent = (raw > 0 ? '+' : '') + raw;
+  });
+}
+
+function resetParams() {
+  S.params = { ...PARAM_DEFAULTS };
+  S.activePreset = '';
+  syncSliders();
+  buildPresetList();
+}
+
+// ── 設定変更 ──────────────────────────────────────────────────────────────────
+function setAspect(btn) {
+  document.querySelectorAll('[data-aspect]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  S.aspect = btn.dataset.aspect;
+  resizeCanvas();
+}
+function toggleBorder() {
+  S.border = !S.border;
+  document.getElementById('border-btn').classList.toggle('active', S.border);
+  resizeCanvas();
+}
+function toggleDate() {
+  S.date = !S.date;
+  document.getElementById('date-btn').classList.toggle('active', S.date);
+  resizeCanvas();
+}
+
+// ── 比較バー（Before/After） ──────────────────────────────────────────────────
+function toggleCompare() {
+  S.cmpTouched = true;
+  S.compare = !S.compare;
+  document.getElementById('cmp-btn').classList.toggle('active', S.compare);
+  updateCmpUI();
+}
+
+function updateCmpUI() {
+  const on   = S.compare && S.fileLoaded && !EX.active;
+  const line = document.getElementById('cmp-line');
+  const tb   = document.getElementById('cmp-tag-b');
+  const ta   = document.getElementById('cmp-tag-a');
+  line.style.display = tb.style.display = ta.style.display = on ? 'block' : 'none';
+  if (!on) return;
+  const x = glCanvas.offsetLeft, y = glCanvas.offsetTop;
+  const w = glCanvas.clientWidth, h = glCanvas.clientHeight;
+  line.style.left   = (x + w * S.split - 1) + 'px';
+  line.style.top    = y + 'px';
+  line.style.height = h + 'px';
+  tb.style.left = (x + 10) + 'px';
+  tb.style.top  = (y + 10) + 'px';
+  ta.style.left = (x + w * S.split + 12) + 'px';
+  ta.style.top  = (y + 10) + 'px';
+}
+
+let cmpDrag = false;
+document.getElementById('cmp-line').addEventListener('pointerdown', e => {
+  cmpDrag = true; e.stopPropagation(); e.preventDefault();
+});
+document.addEventListener('pointermove', e => {
+  if (!cmpDrag) return;
+  const r = glCanvas.getBoundingClientRect();
+  S.split = Math.min(0.95, Math.max(0.05, (e.clientX - r.left) / r.width));
+  updateCmpUI();
+});
+document.addEventListener('pointerup',     () => { cmpDrag = false; });
+document.addEventListener('pointercancel', () => { cmpDrag = false; });
+
+// ── タイムライン ──────────────────────────────────────────────────────────────
+function pctOf(t)  { return S.duration > 0 ? t / S.duration : 0; }
+function timeAt(p) { return p * S.duration; }
+
+function fmt(t) {
+  const m = Math.floor(t / 60), s = Math.floor(t % 60), cs = Math.floor((t % 1) * 10);
+  return `${m}:${String(s).padStart(2,'0')}.${cs}`;
+}
+
+function updateTimeline() {
+  const ip = pctOf(S.inTime), op = pctOf(S.outTime);
+  inHandle.style.left   = `${ip * 100}%`;
+  outHandle.style.left  = `${op * 100}%`;
+  rangeFill.style.left  = `${ip * 100}%`;
+  rangeFill.style.width = `${(op - ip) * 100}%`;
+  document.getElementById('lbl-in').textContent  = fmt(S.inTime);
+  document.getElementById('lbl-out').textContent = fmt(S.outTime);
+}
+
+function updatePlayhead() {
+  const p = pctOf(video.currentTime);
+  playhead.style.left = `${p * 100}%`;
+  document.getElementById('lbl-cur').textContent = fmt(video.currentTime);
+}
+
+// Pointer Events でマウス・タッチ両対応
+let dragTarget = null;
+inHandle.addEventListener('pointerdown',  e => { dragTarget = 'in';  e.stopPropagation(); e.preventDefault(); });
+outHandle.addEventListener('pointerdown', e => { dragTarget = 'out'; e.stopPropagation(); e.preventDefault(); });
+document.addEventListener('pointermove', e => {
+  if (!dragTarget) return;
+  const rect = timeline.getBoundingClientRect();
+  const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+  const t    = timeAt(pct);
+  if (dragTarget === 'in') {
+    S.inTime = Math.min(t, S.outTime - 0.1);
+    video.currentTime = S.inTime;
+  } else {
+    S.outTime = Math.max(t, S.inTime + 0.1);
+    video.currentTime = S.outTime;
+  }
+  updateTimeline();
+});
+document.addEventListener('pointerup',     () => { dragTarget = null; });
+document.addEventListener('pointercancel', () => { dragTarget = null; });
+
+// プレビューをタップ/クリックで再生・停止（モバイルにはスペースキーがない）
+// パン操作の直後は再生/停止を発火させない
+glCanvas.addEventListener('click', () => {
+  if (panMoved) { panMoved = false; return; }
+  if (!S.fileLoaded || EX.active) return;
+  video.paused ? video.play() : video.pause();
+});
+
+timeline.addEventListener('click', e => {
+  if (dragTarget) return;
+  const rect = timeline.getBoundingClientRect();
+  const pct  = (e.clientX - rect.left) / rect.width;
+  video.currentTime = Math.max(S.inTime, Math.min(S.outTime, timeAt(pct)));
+});
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' && S.fileLoaded && document.activeElement.tagName !== 'INPUT') {
+    e.preventDefault();
+    video.paused ? video.play() : video.pause();
+  }
+});
+
+// ── 動画ライブラリ（アップロードなし・端末内読込のみ） ─────────────────────────
+function addFiles(files) {
+  const list = [...files].filter(f =>
+    f.type.startsWith('video/') || /\.(mp4|mov|m4v)$/i.test(f.name));
+  if (!list.length) return;
+  let firstId = null;
+  for (const f of list) {
+    const entry = {
+      id: Math.random().toString(36).slice(2, 10),
+      name: f.name,
+      url: URL.createObjectURL(f),
+      thumb: null, duration: 0,
+    };
+    S.videos.push(entry);
+    if (!firstId) firstId = entry.id;
+    makeThumb(entry);
+  }
+  buildLibrary();
+  uploadZone.style.display = 'none';
+  appEl.classList.add('visible');
+  activateVideo(firstId);
+}
+
+// サムネイル生成（別のvideo要素で行い、メイン再生を邪魔しない）
+// シークだけではフレームが描画準備できない動画（特にiPhone Safari・HEVC/Log素材）が
+// あるため、いったん再生して「フレームが実際に提示された瞬間」にキャプチャする
+function makeThumb(entry) {
+  const v = document.createElement('video');
+  v.muted = true; v.playsInline = true; v.preload = 'auto';
+  v.src = entry.url;
+  let done = false;
+
+  const finish = () => {
+    if (done) return;
+    done = true;
+    v.pause();
+    v.removeAttribute('src'); v.load();
+    buildLibrary();
+  };
+
+  const capture = () => {
+    if (done || !v.videoWidth) return;
+    try {
+      const c = document.createElement('canvas');
+      const s = 220 / Math.max(v.videoWidth, v.videoHeight, 1);
+      c.width  = Math.max(2, Math.round(v.videoWidth  * s));
+      c.height = Math.max(2, Math.round(v.videoHeight * s));
+      c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+      entry.thumb = c.toDataURL('image/jpeg', 0.72);
+    } catch {}
+    finish();
+  };
+
+  v.addEventListener('loadedmetadata', () => {
+    entry.duration = v.duration || 0;
+    if (!v.videoWidth) {   // 映像トラックをデコードできない（ProRes等）
+      entry.broken = true;
+      finish();
+      return;
+    }
+    buildLibrary();   // 尺バッジだけ先に出す
+    v.currentTime = Math.min(0.5, (v.duration || 1) / 2);
+  }, { once: true });
+
+  v.addEventListener('seeked', () => {
+    if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+      // 確実: 再生してフレーム提示と同時にキャプチャ
+      v.requestVideoFrameCallback(() => capture());
+      v.play().catch(() => capture());   // 自動再生不可ならその場で試す
+    } else {
+      capture();
+    }
+  }, { once: true });
+
+  v.addEventListener('error', () => { entry.broken = true; finish(); }, { once: true });
+  setTimeout(finish, 8000);   // 保険: 8秒で諦めてプレースホルダのまま
+}
+
+function buildLibrary() {
+  const box = document.getElementById('video-list');
+  box.innerHTML = '';
+  S.videos.forEach(en => {
+    const item = document.createElement('div');
+    item.className = 'vid-item' + (en.id === S.activeVideo ? ' active' : '');
+    let t;
+    if (en.thumb) {
+      t = document.createElement('img');
+      t.className = 'v-thumb';
+      t.src = en.thumb;
+    } else if (en.broken) {
+      t = document.createElement('div');
+      t.className = 'v-thumb bad';
+      t.textContent = '✕ 非対応';
+      t.title = 'このブラウザで再生できない形式（ProRes等）。Safariで開くか H.264/HEVC に変換してください';
+    } else {
+      t = document.createElement('div');
+      t.className = 'v-thumb';
+      t.textContent = '…';
+    }
+    const nm = document.createElement('div');
+    nm.className = 'v-name';
+    nm.textContent = en.name;
+    item.appendChild(t);
+    item.appendChild(nm);
+    if (en.duration) {
+      const d = document.createElement('div');
+      d.className = 'v-dur';
+      d.textContent = fmt(en.duration);
+      item.appendChild(d);
+    }
+    item.onclick = () => activateVideo(en.id);
+    box.appendChild(item);
+  });
+}
+
+async function activateVideo(id) {
+  if (EX.active || S.switching) return;
+  const entry = S.videos.find(v => v.id === id);
+  if (!entry || id === S.activeVideo) return;
+
+  // 切替中はレンダリング・seekループを完全停止してから src を入れ替える
+  S.switching  = true;
+  S.fileLoaded = false;
+  video.pause();
+  const ok = await new Promise(res => {
+    let settled = false;
+    const settle = v => {
+      if (settled) return; settled = true;
+      clearTimeout(tmo); cleanup(); res(v);
+    };
+    const onOk = () => settle(true), onNg = () => settle(false);
+    const cleanup = () => {
+      video.removeEventListener('loadedmetadata', onOk);
+      video.removeEventListener('error', onNg);
+    };
+    video.addEventListener('loadedmetadata', onOk);
+    video.addEventListener('error', onNg);
+    // 10秒以内に loadedmetadata も error も来ない場合（iOS stall等）は失敗扱い
+    const tmo = setTimeout(() => settle(false), 10000);
+    video.src = entry.url;
+    video.load();
+  });
+  if (!ok || !video.videoWidth) {
+    S.switching = false;
+    entry.broken = true;
+    buildLibrary();
+    showToast(`「${entry.name}」はこのブラウザで再生できない形式です（ProRes等）。Safariで試すか H.264/HEVC に変換してください`, true);
+    return;
+  }
+  S.videoW   = video.videoWidth  || 1920;
+  S.videoH   = video.videoHeight || 1080;
+  S.duration = video.duration   || 0;
+  S.inTime   = 0;
+  S.outTime  = S.duration;
+  S.activeVideo = id;
+  S.switching   = false;
+  S.fileLoaded  = true;
+  // 動画ごとにまっさらの状態から始める（同じ色を使いたい時は MY COLOR から1タップ）
+  S.params = { ...PARAM_DEFAULTS };
+  S.activePreset = '';
+  S.currentLut = '';
+  S.zoom = 1; S.offX = 0; S.offY = 0;
+  updateZoomUI();
+  document.querySelectorAll('.lut-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.lut === ''));
+  document.getElementById('preset-name').value = '';
+  syncSliders();
+  buildPresetList();
+  // 初回はBefore/Afterバーを出した状態で始める（存在に気づけるように）
+  if (!S.cmpTouched && !S.compare) {
+    S.compare = true;
+    document.getElementById('cmp-btn').classList.add('active');
+    showToast('左=元の色 / 右=仕上がり。白いバーは左右にドラッグできます');
+  }
+  video.currentTime = 0;
+  video.play().catch(() => updatePlayBtn());
+  updatePlayBtn();
+  resizeCanvas();
+  updateTimeline();
+  buildLibrary();
+}
+
+// ── 書き出し（MediaRecorder, ブラウザ内エンコード） ───────────────────────────
+let audioCtx = null, audioDest = null, audioOK = false;
+function ensureAudioGraph() {
+  // iOS 17+: 音声セッションを「ambient（他アプリの音楽と共存・止めない）」に設定
+  if ('audioSession' in navigator) {
+    try { navigator.audioSession.type = 'ambient'; } catch {}
+  }
+  if (audioCtx) { audioCtx.resume().catch(() => {}); return; }
+  try {
+    audioCtx  = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaElementSource(video);
+    audioDest = audioCtx.createMediaStreamDestination();
+    src.connect(audioDest);
+    audioOK = true;
+  } catch { audioOK = false; }
+}
+
+function pickMime() {
+  const cands = [
+    ['video/mp4;codecs="avc1.640028,mp4a.40.2"', 'mp4'],
+    ['video/mp4;codecs=avc1',                    'mp4'],
+    ['video/mp4',                                'mp4'],
+    ['video/webm;codecs="vp9,opus"',             'webm'],
+    ['video/webm',                               'webm'],
+  ];
+  for (const [m, ext] of cands) {
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return { mime: m, ext };
+  }
+  return null;
+}
+
+async function doExport() {
+  if (!S.fileLoaded) { showToast('動画を読み込んでください', true); return; }
+  if (EX.active) return;
+  const picked = pickMime();
+  if (!picked) { showToast('このブラウザは書き出しに対応していません（Chrome推奨）', true); return; }
+
+  // 書き出し解像度（クロップ・ズーム・パン後の表示窓、長辺最大1920）
+  const win = cropWindow();
+  const cw = Math.max(2, Math.round(S.videoW * win.sx));
+  const ch = Math.max(2, Math.round(S.videoH * win.sy));
+  const scale = Math.min(1, 1920 / Math.max(cw, ch));
+  EX.vw = Math.round(cw * scale / 2) * 2;
+  EX.vh = Math.round(ch * scale / 2) * 2;
+  EX.bw = S.border ? Math.round(Math.min(EX.vw, EX.vh) * 0.03 / 2) * 2 : 0;
+  EX.bb = S.border ? (S.date ? EX.bw * 2 : EX.bw) : 0;
+  EX.canvas.width  = EX.vw + EX.bw * 2;
+  EX.canvas.height = EX.vh + EX.bw + EX.bb;
+
+  // GLキャンバスを書き出し解像度に切替（プレビューはオーバーレイで隠れる）
+  glCanvas.width  = EX.vw;
+  glCanvas.height = EX.vh;
+
+  ensureAudioGraph();
+  // 前回の stream が残っていれば先に停止
+  if (EX.stream) { EX.stream.getTracks().forEach(t => t.stop()); EX.stream = null; }
+  EX.stream = EX.canvas.captureStream(30);
+  const stream = EX.stream;
+  if (audioOK) {
+    const at = audioDest.stream.getAudioTracks();
+    if (at.length) stream.addTrack(at[0]);
+  }
+
+  EX.chunks = [];
+  EX.recorder = new MediaRecorder(stream, {
+    mimeType: picked.mime,
+    videoBitsPerSecond: Math.min(40e6, EX.vw * EX.vh * 10),
+    audioBitsPerSecond: 192000,
+  });
+  EX.recorder.ondataavailable = e => { if (e.data.size) EX.chunks.push(e.data); };
+  EX.recorder.onstop = () => {
+    const type = picked.mime.split(';')[0];
+    const blob = new Blob(EX.chunks, { type });
+    const now  = new Date();
+    const pad  = n => String(n).padStart(2, '0');
+    const name = `daily_${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.${picked.ext}`;
+    if (!blob.size) {
+      showToast('書き出しに失敗しました（データが空）。もう一度お試しください', true);
+      return;
+    }
+    EX.lastBlob = blob; EX.lastName = name; EX.lastType = type;
+
+    // スマホでは必ず完了ダイアログを出す（静かに失敗/保存先不明になるのを防ぐ）
+    const isMobile = /iPhone|iPad|Android/i.test(navigator.userAgent);
+    let canShareFile = false;
+    try {
+      canShareFile = !!(navigator.canShare &&
+        navigator.canShare({ files: [new File([blob], name, { type })] }));
+    } catch { canShareFile = false; }
+
+    if (isMobile) {
+      document.getElementById('share-btn').style.display = canShareFile ? '' : 'none';
+      document.getElementById('ed-note').innerHTML = canShareFile
+        ? '「写真に保存」を押すと共有メニューが開きます。<br>その中の<b>「ビデオを保存」</b>を選ぶと写真アプリに入ります。'
+        : '「ファイルに保存」を押すと、ファイルアプリの<b>「ダウンロード」</b>に保存されます。<br>写真アプリに入れたい時は、ファイルアプリでその動画を開いて 共有 → <b>「ビデオを保存」</b>。<br><span style="opacity:.7">（サイトを正式公開すると、ここから直接「写真に保存」できるようになります）</span>';
+      document.getElementById('export-done').classList.add('show');
+    } else {
+      downloadBlob(blob, name);
+      showToast(`書き出し完了: ${name}（ダウンロードフォルダ）`);
+    }
+  };
+  EX.recorder.onerror = e => {
+    showToast('書き出しエラー: ' + ((e.error && e.error.message) || '不明なエラー'), true);
+    finishExport();
+  };
+
+  showLoading('書き出し準備中…');
+  document.getElementById('export-btn').disabled = true;
+  EX.end = S.outTime;
+
+  // currentTime が既に t と同じ場合、一部ブラウザは seeked を発火しない → 即 resolve
+  const seekTo = t => new Promise(res => {
+    if (Math.abs(video.currentTime - t) < 0.001) { res(); return; }
+    const h = () => { video.removeEventListener('seeked', h); res(); };
+    video.addEventListener('seeked', h);
+    video.currentTime = t;
+  });
+  // nフレーム進むまで待つ（タイムアウト保険つき）
+  const waitFrames = (n, timeout) => new Promise(r => {
+    let count = 0, done = false;
+    const fin = () => { if (!done) { done = true; r(); } };
+    if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+      const step = () => {
+        if (done) return;
+        if (++count >= n) fin();
+        else video.requestVideoFrameCallback(step);
+      };
+      video.requestVideoFrameCallback(step);
+    }
+    // rVFC 非対応ブラウザはタイムアウトのみで待つ（playing イベントではフレーム保証なし）
+    setTimeout(fin, timeout);
+  });
+
+  // ① ウォームアップ: 一度こっそり再生してデコーダ・エンコーダを温める
+  //    （いきなり録画開始すると冒頭が静止画/カクつきで録られるため）
+  await seekTo(S.inTime);
+  video.muted = true;
+  await video.play().catch(() => {});
+  await waitFrames(5, 1500);
+  video.pause();
+
+  // ② 本番: 頭に戻して、フレームが動き出した瞬間から録画開始
+  await seekTo(S.inTime);
+  showLoading('書き出し中… 実時間と同じだけかかります');
+  video.muted = false;          // 音声をMediaStreamに流す（スピーカーには出ない）
+  try {
+    await video.play();
+  } catch {
+    // 無音でリトライ（音声付き再生がブロックされた場合）
+    video.muted = true;
+    await video.play().catch(() => {});
+  }
+  await waitFrames(1, 1500);
+  EX.active = true;
+  EX.recorder.start(500);
+
+  // 終了監視
+  const watch = setInterval(() => {
+    if (!EX.active) { clearInterval(watch); return; }
+    if (video.currentTime >= EX.end || video.ended) {
+      clearInterval(watch);
+      finishExport();
+    }
+  }, 100);
+}
+
+function downloadBlob(blob, name) {
+  const aEl = document.createElement('a');
+  aEl.href = URL.createObjectURL(blob);
+  aEl.download = name;
+  aEl.click();
+  setTimeout(() => URL.revokeObjectURL(aEl.href), 10000);
+}
+
+// 「写真に保存」: 共有シートを開く（iOSは「ビデオを保存」でカメラロールに入る）
+async function shareExport() {
+  if (!EX.lastBlob) { closeExportDone(); return; }
+  const f = new File([EX.lastBlob], EX.lastName, { type: EX.lastType });
+  try {
+    await navigator.share({ files: [f] });
+    closeExportDone();
+  } catch (e) {
+    // キャンセル時はダイアログを開いたままにする（再試行できるように）
+  }
+}
+
+function downloadExport() {
+  if (EX.lastBlob) downloadBlob(EX.lastBlob, EX.lastName);
+  closeExportDone();
+  showToast(`保存しました: ${EX.lastName}`);
+}
+
+function closeExportDone() {
+  document.getElementById('export-done').classList.remove('show');
+  EX.lastBlob = null;
+}
+
+function finishExport() {
+  if (!EX.active) return;
+  EX.active = false;
+  video.pause();
+  video.muted = true;
+  try { EX.recorder.stop(); } catch {}
+  // captureStream のトラックを停止（止めないと次の書き出しでもリソースが残る）
+  if (EX.stream) { EX.stream.getTracks().forEach(t => t.stop()); EX.stream = null; }
+  // 音声セッションを解放（他アプリの音楽再生をブロックし続けないように）
+  if (audioCtx) audioCtx.suspend().catch(() => {});
+  hideLoading();
+  document.getElementById('export-btn').disabled = false;
+  document.getElementById('progress-fill').style.width = '0%';
+  resizeCanvas();
+  video.currentTime = S.inTime;
+}
+
+// ── UI ヘルパー ───────────────────────────────────────────────────────────────
+function showLoading(msg) {
+  document.getElementById('loading-msg').textContent = msg;
+  document.getElementById('loading').classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('loading').classList.remove('show');
+}
+let _toastTimer = null;
+function showToast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = isErr ? 'err' : '';
+  t.style.display = 'block';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => { t.style.display = 'none'; }, 4000);
+}
+
+// ── ドラッグ & ドロップ ──────────────────────────────────────────────────────
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  addFiles(e.dataTransfer.files);
+});
+document.getElementById('file-input').addEventListener('change', e => {
+  addFiles(e.target.files);
+  e.target.value = '';
+});
+// アプリ表示後も画面のどこにでもドロップで追加できる
+document.addEventListener('dragover', e => { if (S.fileLoaded) e.preventDefault(); });
+document.addEventListener('drop', e => {
+  if (!S.fileLoaded) return;
+  e.preventDefault();
+  addFiles(e.dataTransfer.files);
+});
+
+// ── 初期化 ────────────────────────────────────────────────────────────────────
+(async () => {
+  loadStore();
+  try {
+    const r = await fetch('luts/index.json');
+    const manifest = r.ok ? await r.json() : [];
+    S.luts = FILM_ALLOWED.filter(n => manifest.includes(n));
+  } catch { S.luts = []; }
+  buildLutButtons();
+  buildPresetList();
+  buildSliders();
+})();
+
+window.addEventListener('resize', () => { if (S.fileLoaded) resizeCanvas(); });
+// ページを閉じるとき Blob URL を一括解放（メモリリーク防止）
+window.addEventListener('pagehide', () => {
+  S.videos.forEach(v => { try { URL.revokeObjectURL(v.url); } catch {} });
+});
+</script>
+</body>
+</html>
