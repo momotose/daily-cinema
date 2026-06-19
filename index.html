@@ -1668,7 +1668,7 @@ async function doExport() {
   EX.chunks = [];
   EX.recorder = new MediaRecorder(stream, {
     mimeType: picked.mime,
-    videoBitsPerSecond: Math.min(40e6, EX.vw * EX.vh * 10),
+    videoBitsPerSecond: Math.min(80e6, EX.vw * EX.vh * 20),
     audioBitsPerSecond: 192000,
   });
   EX.recorder.ondataavailable = e => { if (e.data.size) EX.chunks.push(e.data); };
