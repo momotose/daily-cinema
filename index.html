@@ -1643,7 +1643,7 @@ async function doExport() {
   const win = cropWindow();
   const cw = Math.max(2, Math.round(S.videoW * win.sx));
   const ch = Math.max(2, Math.round(S.videoH * win.sy));
-  const scale = Math.min(1, 1920 / Math.max(cw, ch));
+  const scale = Math.min(1, 2160 / Math.max(cw, ch));
   EX.vw = Math.round(cw * scale / 2) * 2;
   EX.vh = Math.round(ch * scale / 2) * 2;
   EX.bw = S.border ? Math.round(Math.min(EX.vw, EX.vh) * 0.03 / 2) * 2 : 0;
@@ -1658,7 +1658,7 @@ async function doExport() {
   ensureAudioGraph();
   // 前回の stream が残っていれば先に停止
   if (EX.stream) { EX.stream.getTracks().forEach(t => t.stop()); EX.stream = null; }
-  EX.stream = EX.canvas.captureStream(30);
+  EX.stream = EX.canvas.captureStream(60);
   const stream = EX.stream;
   if (audioOK) {
     const at = audioDest.stream.getAudioTracks();
